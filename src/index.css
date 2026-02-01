@@ -1,0 +1,118 @@
+:root {
+  /* Common */
+  --font-main: 'Inter', system-ui, -apple-system, sans-serif;
+  --container-width: 420px;
+  --radius-lg: 16px;
+  --radius-md: 8px;
+
+  /* Light Theme Default */
+  --color-bg: #f2f2f7;
+  --color-surface: #ffffff;
+  --color-surface-hover: #e5e5ea;
+  --color-primary: #007aff;
+  --color-accent: #ff3b30;
+  --color-text: #000000;
+  --color-text-dim: #6e6e73;
+  --color-border: #d1d1d6;
+}
+
+[data-theme='dark'] {
+  --color-bg: #050505;
+  --color-surface: #121212;
+  --color-surface-hover: #1e1e1e;
+  --color-primary: #00e5ff;
+  --color-accent: #ff0055;
+  --color-text: #ffffff;
+  --color-text-dim: #a0a0a0;
+  --color-border: #333333;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-main);
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  min-height: 100vh;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+.app-container {
+  width: 100%;
+}
+
+/* Form Elements Reset & Base Styles */
+button,
+input,
+select {
+  font-family: inherit;
+  font-size: 1rem;
+}
+
+/* Ensure inputs and selects have correct visual on all themes */
+input,
+select {
+  background-color: var(--color-surface);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 0.5rem;
+}
+
+input::placeholder {
+  color: var(--color-text-dim);
+  opacity: 0.7;
+}
+
+/* Remove default scrollbar for cleaner look, custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-surface-hover);
+  border-radius: 4px;
+}
+
+#root {
+  width: 100%;
+  max-width: 1280px;
+  margin: 0 auto;
+  /* padding: 2rem; REMOVED by user request */
+  text-align: center;
+}
+
+button {
+  border-radius: var(--radius-md);
+  border: 1px solid transparent;
+  padding: 0.6em 1.2em;
+  font-size: 1em;
+  font-weight: 500;
+  font-family: inherit;
+  background-color: var(--color-surface);
+  cursor: pointer;
+  transition: border-color 0.25s, background-color 0.25s;
+}
+
+button:hover {
+  background-color: var(--color-surface-hover);
+  border-color: var(--color-primary-dim);
+}
+
+button:focus,
+button:focus-visible {
+  outline: 4px auto -webkit-focus-ring-color;
+}
+
+h1 {
+  font-size: 3.2em;
+  line-height: 1.1;
+  background: linear-gradient(to right, var(--color-primary), var(--color-accent));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  margin-bottom: var(--spacing-lg);
+}

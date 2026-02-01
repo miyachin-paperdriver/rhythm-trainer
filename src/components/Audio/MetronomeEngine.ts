@@ -60,19 +60,24 @@ export class MetronomeEngine {
 
     private unlockAudioContext() {
         if (!this.audioContext) return;
-        // Create a buffer of 0.5s faint noise (instead of silence) to force hardware engagement
-        // Silence is sometimes optimized out by iOS Audio mixing.
+        // Create a buffer of 0.5s silence (Reverted from noise)
         const length = this.audioContext.sampleRate * 0.5;
         const buffer = this.audioContext.createBuffer(1, length, this.audioContext.sampleRate);
-        const data = buffer.getChannelData(0);
-        for (let i = 0; i < length; i++) {
-            data[i] = (Math.random() * 2 - 1) * 0.001; // Very faint white noise
-        }
-
         const source = this.audioContext.createBufferSource();
         source.buffer = buffer;
         source.connect(this.audioContext.destination);
         source.start(0);
+
+        // Also trigger HTML5 Audio to bypass Silent Switch (iOS)
+        this.bypassSilentSwitch();
+    }
+
+    private bypassSilentSwitch() {
+        // Play a tiny silent file to force the Audio Session category to 'Playback'
+        const audio = new Audio();
+        audio.src = 'data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//OEAAAAAAAAAAAAAAAAAAAAAAAASW5mbwAAAA8AAAAEAAABIADAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV6urq6urq6urq6urq6urq6urq6urq6urq6v////////////////////////////////8AAAAATGF2YzU4LjkxAAAAAAAAAAAAAAAAJAAAAAAAAAAAASAAAAAA//OEZAAAAAABIAAAACABHAAAAAAAAAAAAAA//OEZAAAAAABIAAAACABHAAAAAAAAAAAAAA//OEZAAAAAABIAAAACABHAAAAAAAAAAAAAA//OEZAAAAAABIAAAACABHAAAAAAAAAAAAAA//OEZAAAAAABIAAAACABHAAAAAAAAAAAAAA//OEZAAAAAABIAAAACABHAAAAAAAAAAAAAA';
+        audio.volume = 0.01;
+        audio.play().catch(e => console.warn('Silent switch bypass failed', e));
     }
 
     public stop() {
@@ -140,17 +145,6 @@ export class MetronomeEngine {
                 isMuted = true;
             }
         }
-
-        // Call UI Tick only on main beats? Or all sub-beats?
-        // Let's call on all, pass subBeat info? 
-        // Existing UI expects (beat, time, step). Step is main beat count.
-        // If we call on every sub-beat, currentBeat update might be too fast/weird.
-        // BUT we want to hear sub-beats.
-
-        // Trigger onTick ONLY on Main Beats (subBeat == 0) for visualizer sync?
-        // Or visualizer might strictly follow steps.
-        // PatternVisualizer relies on `stepNumber`.
-        // If I callback on subBeat, stepNumber doesn't increment.
 
         if (subBeat === 0) {
             if (this.onTick) this.onTick(beat, time, this.stepNumber, isMuted, isCountIn);

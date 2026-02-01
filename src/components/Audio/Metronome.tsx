@@ -12,15 +12,16 @@ import { PatternVisualizer } from '../Visualizer/PatternVisualizer';
 import { WaveformVisualizer } from '../Audio/WaveformVisualizer';
 import { HistoryView } from '../Analysis/HistoryView';
 import { TimingGauge } from '../Visualizer/TimingGauge';
+import { ManualHelper } from '../Manual/ManualHelper';
 import { PATTERNS } from '../../utils/patterns';
 
 export const Metronome: React.FC = () => {
     // ---- State ----
-    const [activeTab, setActiveTab] = useState<'training' | 'history'>('training');
+    const [activeTab, setActiveTab] = useState<'training' | 'history' | 'manual' | 'settings'>('training');
     const [selectedPatternId, setSelectedPatternId] = useState(PATTERNS[2].id);
     const selectedPattern = PATTERNS.find(p => p.id === selectedPatternId) || PATTERNS[0];
     const [disableRecording, setDisableRecording] = useState(false);
-    const [settingsExpanded, setSettingsExpanded] = useState(false);
+
 
     // Tempo / Rhythm Settings State
     const [subdivision, setSubdivisionState] = useState<Subdivision>(1);
@@ -752,25 +753,65 @@ export const Metronome: React.FC = () => {
         <section className="metronome-container" style={{ padding: '1rem 0', width: '100%', boxSizing: 'border-box', margin: '0 auto' }}>
 
             {/* Tabs */}
-            <div style={{ display: 'flex', marginBottom: '1rem', borderBottom: '1px solid var(--color-surface-hover)', padding: '0 1rem' }}>
+            <div style={{ display: 'flex', marginBottom: '1rem', borderBottom: '1px solid var(--color-surface-hover)', padding: '0 0.5rem', gap: '4px' }}>
+                {/* Main Tabs */}
                 {['training', 'history'].map(tab => (
                     <button
                         key={tab}
                         onClick={() => setActiveTab(tab as any)}
                         style={{
                             flex: 1,
-                            padding: '1rem',
+                            padding: '0.8rem 0.5rem',
                             border: 'none',
                             background: 'transparent',
                             color: activeTab === tab ? 'var(--color-primary)' : 'var(--color-text-dim)',
-                            borderBottom: activeTab === tab ? '2px solid var(--color-primary)' : 'none',
+                            borderBottom: activeTab === tab ? '3px solid var(--color-primary)' : '3px solid transparent',
                             fontWeight: 'bold',
-                            textTransform: 'capitalize'
+                            textTransform: 'capitalize',
+                            fontSize: '1rem',
+                            transition: 'all 0.2s',
+                            cursor: 'pointer'
                         }}
                     >
                         {tab}
                     </button>
                 ))}
+
+                {/* Secondary Tabs (Small) */}
+                <button
+                    onClick={() => setActiveTab('manual')}
+                    style={{
+                        padding: '0.8rem 1rem',
+                        border: 'none',
+                        background: 'transparent',
+                        color: activeTab === 'manual' ? 'var(--color-primary)' : 'var(--color-text-dim)',
+                        borderBottom: activeTab === 'manual' ? '3px solid var(--color-primary)' : '3px solid transparent',
+                        fontWeight: 'bold',
+                        fontSize: '1.2rem',
+                        cursor: 'pointer',
+                        minWidth: '50px'
+                    }}
+                    title="Manual"
+                >
+                    ?
+                </button>
+                <button
+                    onClick={() => setActiveTab('settings')}
+                    style={{
+                        padding: '0.8rem 1rem',
+                        border: 'none',
+                        background: 'transparent',
+                        color: activeTab === 'settings' ? 'var(--color-primary)' : 'var(--color-text-dim)',
+                        borderBottom: activeTab === 'settings' ? '3px solid var(--color-primary)' : '3px solid transparent',
+                        fontWeight: 'bold',
+                        fontSize: '1.2rem',
+                        cursor: 'pointer',
+                        minWidth: '50px'
+                    }}
+                    title="Settings"
+                >
+                    ⚙️
+                </button>
             </div>
 
             {activeTab === 'training' && (
@@ -1202,10 +1243,22 @@ export const Metronome: React.FC = () => {
                     )}
 
                     {/* 4. Settings (Collapsible) */}
+
+                </div>
+            )}
+
+            {activeTab === 'history' && (
+                <HistoryView />
+            )}
+
+            {activeTab === 'manual' && (
+                <ManualHelper />
+            )}
+
+            {activeTab === 'settings' && (
+                <div style={{ height: 'calc(100vh - 160px)', padding: '0 1rem' }}>
                     <MetronomeSettings
                         onThemeChange={handleThemeChange}
-                        isExpanded={settingsExpanded}
-                        onToggleExpand={() => setSettingsExpanded(!settingsExpanded)}
                         audioLatency={audioLatency}
                         onAudioLatencyChange={setAudioLatency}
                         onRunAutoCalibration={runCalibration}
@@ -1218,10 +1271,6 @@ export const Metronome: React.FC = () => {
                         isMicCalibrating={micCalibState.active}
                     />
                 </div>
-            )}
-
-            {activeTab === 'history' && (
-                <HistoryView />
             )}
 
         </section>

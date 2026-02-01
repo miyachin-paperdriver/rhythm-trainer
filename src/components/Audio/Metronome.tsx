@@ -368,22 +368,21 @@ export const Metronome: React.FC = () => {
 
         // Calculate
         // Goal: Signal ~ 0.5 (50% full scale)
-        let targetGain = micGain * (0.5 / signalMax);
+        // But apply SAFETY MARGIN: reduce gain by 20% to avoid over-sensitivity
+        let targetGain = micGain * (0.5 / signalMax) * 0.8;
         targetGain = Math.max(1.0, Math.min(10.0, targetGain));
 
         // Threshold Calculation
         const gainRatio = targetGain / micGain;
         const projectedFloor = effectiveFloor * gainRatio;
-        const projectedSignal = signalMax * gainRatio; // Should be ~0.5
+        const projectedSignal = signalMax * gainRatio; // Should be ~0.4 now (due to 0.8 factor)
 
         // Set Threshold
-        // Must be clear of Floor. Say 2.0x Floor? 
-        // But also needs to be sensitive enough for dynamics.
-        // Let's try: Max(Floor * 2.5, Signal * 0.15)
-        // If Floor is 0.1 (loud click), Thresh -> 0.25. Signal 0.5. Works.
-
-        let targetThreshold = Math.max(projectedFloor * 2.5, projectedSignal * 0.15);
-        targetThreshold = Math.max(0.02, Math.min(0.5, targetThreshold));
+        // SAFETY MARGIN: Double the threshold multiplier to reduce false positives
+        // Old: Max(Floor * 2.5, Signal * 0.15)
+        // New: Max(Floor * 4.0, Signal * 0.30) - more conservative
+        let targetThreshold = Math.max(projectedFloor * 4.0, projectedSignal * 0.30);
+        targetThreshold = Math.max(0.05, Math.min(0.5, targetThreshold)); // Min 0.05 instead of 0.02
 
         // Safety: If Threshold ended up > Signal * 0.8 (too close to signal because floor was high), cap it?
         // No, if floor is high, we MUST have high threshold or we get false positives.

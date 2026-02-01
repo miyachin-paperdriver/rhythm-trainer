@@ -289,6 +289,7 @@ export const Metronome: React.FC = () => {
         setTimeout(() => {
             setMicCalibState({ active: false, step: 'idle', noisePeak: 0, signalPeaks: [], hitCount: 0, message: '' });
             setIsCalibrating(false);
+            stopAnalysis(); // Ensure mic is closed
         }, 3000);
     };
 
@@ -297,6 +298,7 @@ export const Metronome: React.FC = () => {
         if (micCalibRef.current.timer) clearTimeout(micCalibRef.current.timer);
         setMicCalibState({ active: false, step: 'idle', noisePeak: 0, signalPeaks: [], hitCount: 0, message: '' });
         setIsCalibrating(false);
+        stopAnalysis(); // Ensure mic is closed
     };
 
     // NEW STRATEGY for Calibration:

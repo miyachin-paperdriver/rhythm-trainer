@@ -206,21 +206,23 @@ export const MetronomeSettings: React.FC<MetronomeSettingsProps> = ({
                                 onClick={onRunMicCalibration}
                                 disabled={isMicCalibrating}
                                 style={{
-                                    fontSize: '0.7rem',
-                                    padding: '2px 8px',
+                                    fontSize: '0.85rem',
+                                    padding: '6px 16px',
                                     background: isMicCalibrating ? 'gray' : 'var(--color-primary)',
                                     color: '#fff',
+                                    fontWeight: 'bold',
                                     border: 'none',
-                                    borderRadius: '4px',
-                                    cursor: isMicCalibrating ? 'wait' : 'pointer'
+                                    borderRadius: '6px',
+                                    cursor: isMicCalibrating ? 'wait' : 'pointer',
+                                    boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
                                 }}
                             >
                                 Auto Set
                             </button>
                         </div>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', padding: '0 4px' }}>
                             <div>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', color: 'var(--color-text-dim)', marginBottom: '2px' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: 'var(--color-text-dim)', marginBottom: '4px' }}>
                                     <span>Gain</span>
                                     <span>{micGain.toFixed(1)}x</span>
                                 </div>
@@ -229,11 +231,11 @@ export const MetronomeSettings: React.FC<MetronomeSettingsProps> = ({
                                     min="1.0" max="10.0" step="0.1"
                                     value={micGain}
                                     onChange={e => onMicGainChange(parseFloat(e.target.value))}
-                                    style={{ width: '100%', accentColor: 'var(--color-primary)' }}
+                                    style={{ width: '100%', boxSizing: 'border-box', accentColor: 'var(--color-primary)', cursor: 'pointer' }}
                                 />
                             </div>
                             <div>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', color: 'var(--color-text-dim)', marginBottom: '2px' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: 'var(--color-text-dim)', marginBottom: '4px' }}>
                                     <span>Sensitivity (Threshold: {micThreshold.toFixed(2)})</span>
                                 </div>
                                 <input
@@ -241,7 +243,7 @@ export const MetronomeSettings: React.FC<MetronomeSettingsProps> = ({
                                     min="0.01" max="0.5" step="0.01"
                                     value={micThreshold}
                                     onChange={e => onMicThresholdChange(parseFloat(e.target.value))}
-                                    style={{ width: '100%', accentColor: 'var(--color-primary)' }}
+                                    style={{ width: '100%', boxSizing: 'border-box', accentColor: 'var(--color-primary)', cursor: 'pointer' }}
                                 />
                                 <div style={{ fontSize: '0.65rem', color: '#888', marginTop: '2px' }}>
                                     Lower is more sensitive. Increase if too noisy.

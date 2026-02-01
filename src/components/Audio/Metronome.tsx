@@ -5,6 +5,9 @@ import { useRhythmScoring } from '../../hooks/useRhythmScoring';
 import { useSessionManager } from '../../hooks/useSessionManager';
 import { useAudioRecorder } from '../../hooks/useAudioRecorder';
 import { MetronomeSettings } from '../Controls/MetronomeSettings';
+import { SubdivisionControl } from '../Controls/SubdivisionControl';
+import { GapClickControl } from '../Controls/GapClickControl';
+import { type Subdivision } from './MetronomeEngine';
 import { PatternVisualizer } from '../Visualizer/PatternVisualizer';
 import { WaveformVisualizer } from '../Audio/WaveformVisualizer';
 import { HistoryView } from '../Analysis/HistoryView';
@@ -18,6 +21,12 @@ export const Metronome: React.FC = () => {
     const selectedPattern = PATTERNS.find(p => p.id === selectedPatternId) || PATTERNS[0];
     const [disableRecording, setDisableRecording] = useState(false);
     const [settingsExpanded, setSettingsExpanded] = useState(false);
+
+    // Tempo / Rhythm Settings State
+    const [subdivision, setSubdivisionState] = useState<Subdivision>(1);
+    const [gapEnabled, setGapEnabled] = useState(false);
+    const [playBars, setPlayBars] = useState(4);
+    const [muteBars, setMuteBars] = useState(4);
 
     // Latency State
     const [audioLatency, setAudioLatency] = useState(() => Number(localStorage.getItem('audioLatency') || 0));
@@ -75,12 +84,13 @@ export const Metronome: React.FC = () => {
     // ---- Mic Auto Calibration ----
     const [micCalibState, setMicCalibState] = useState<{
         active: boolean,
-        step: 'idle' | 'noise' | 'signal' | 'calculating' | 'finished',
+        step: 'idle' | 'noise' | 'bleed' | 'signal' | 'calculating' | 'finished',
         noisePeak: number,
+        bleedPeak: number,
         signalPeaks: number[],
         hitCount: number,
         message: string
-    }>({ active: false, step: 'idle', noisePeak: 0, signalPeaks: [], hitCount: 0, message: '' });
+    }>({ active: false, step: 'idle', noisePeak: 0, bleedPeak: 0, signalPeaks: [], hitCount: 0, message: '' });
 
     const micCalibRef = React.useRef<{
         timer: any,
@@ -94,7 +104,7 @@ export const Metronome: React.FC = () => {
         setIsCalibrating(true);
 
         // 1. Initial Start Trigger
-        setMicCalibState({ active: true, step: 'noise', noisePeak: 0, signalPeaks: [], hitCount: 0, message: 'Starting... Please wait.' });
+        setMicCalibState({ active: true, step: 'noise', noisePeak: 0, bleedPeak: 0, signalPeaks: [], hitCount: 0, message: 'Starting... Please wait.' });
 
         // 2. Ensure Audio Context exists (resume/create)
         if (!audioContext) {
@@ -115,7 +125,7 @@ export const Metronome: React.FC = () => {
         if (!micAnalyzerRef.current) {
             // Fatal error
             alert("Microphone initialization failed. Please try again.");
-            setMicCalibState({ active: false, step: 'idle', noisePeak: 0, signalPeaks: [], hitCount: 0, message: '' });
+            setMicCalibState({ active: false, step: 'idle', noisePeak: 0, bleedPeak: 0, signalPeaks: [], hitCount: 0, message: '' });
             setIsCalibrating(false);
             return;
         }
@@ -130,7 +140,7 @@ export const Metronome: React.FC = () => {
             } catch (e) {
                 console.error(e);
                 alert("Failed to access microphone. Please check permissions.");
-                setMicCalibState({ active: false, step: 'idle', noisePeak: 0, signalPeaks: [], hitCount: 0, message: '' });
+                setMicCalibState({ active: false, step: 'idle', noisePeak: 0, bleedPeak: 0, signalPeaks: [], hitCount: 0, message: '' });
                 setIsCalibrating(false);
                 return;
             }
@@ -139,7 +149,7 @@ export const Metronome: React.FC = () => {
         setMicCalibState(prev => ({ ...prev, message: 'Quietly wait... Measuring noise.' }));
 
         // Reset Ref
-        micCalibRef.current = { timer: null, poll: null, startTime: Date.now(), maxPeak: 0, lastHitTime: 0 };
+        micCalibRef.current = { timer: null, poll: null, startTime: 0, maxPeak: 0, lastHitTime: 0 };
 
         // Step 1: Measure Noise (3s)
         micCalibRef.current.poll = setInterval(() => {
@@ -152,66 +162,116 @@ export const Metronome: React.FC = () => {
         micCalibRef.current.timer = setTimeout(() => {
             if (micCalibRef.current.poll) clearInterval(micCalibRef.current.poll);
             micCalibRef.current.poll = null;
-            micCalibRef.current.timer = null; // Clean timer
+            micCalibRef.current.timer = null;
 
             const noise = micCalibRef.current.maxPeak;
-
             console.log('[MicCalib] Noise Floor:', noise);
 
-            setMicCalibState({
-                active: true,
-                step: 'signal',
-                noisePeak: noise,
-                signalPeaks: [],
-                hitCount: 0,
-                message: 'Now HIT the pad 5 times!'
-            });
+            // ---- NEW Step 1.5: Measure Click Bleed ----
+            setMicCalibState(prev => ({ ...prev, step: 'bleed', noisePeak: noise, message: 'Measuring Click Sound... Stay Quiet.' }));
 
-            // Step 2: Measure Signal
-            micCalibRef.current.maxPeak = 0; // Reset max for signal phase
-            micCalibRef.current.startTime = Date.now();
-            micCalibRef.current.lastHitTime = 0;
-            const collectedPeaks: number[] = [];
-            let hits = 0;
+            // Generate Clicks
+            if (audioContext) {
+                const now = audioContext.currentTime;
+                // Play 4 clicks over 2 seconds
+                const times = [now + 0.5, now + 1.0, now + 1.5, now + 2.0];
+                times.forEach(t => {
+                    const osc = audioContext.createOscillator();
+                    const gain = audioContext.createGain();
+                    osc.connect(gain);
+                    gain.connect(audioContext.destination);
+                    osc.frequency.value = 1000; // High pitch to test basic bleed
+                    gain.gain.setValueAtTime(0, t);
+                    gain.gain.linearRampToValueAtTime(0.8, t + 0.01);
+                    gain.gain.linearRampToValueAtTime(0, t + 0.1);
+                    osc.start(t);
+                    osc.stop(t + 0.15);
+                });
+            }
 
-            // Re-start polling for signal detection
+            // Reset Ref for Bleed measurement
+            micCalibRef.current.maxPeak = 0;
+
+            // Poll for 2.5s (covering the clicks)
             micCalibRef.current.poll = setInterval(() => {
                 if (micAnalyzerRef.current) {
                     const lvl = micAnalyzerRef.current.currentLevel;
-                    const now = Date.now();
-
-                    // Track global max for safety
                     if (lvl > micCalibRef.current.maxPeak) micCalibRef.current.maxPeak = lvl;
-
-                    // Hit Detection Logic
-                    // Threshold: 2x Noise or 0.02 (whichever is larger)
-                    const hitThresh = Math.max(noise * 2.0, 0.02);
-
-                    if (lvl > hitThresh) {
-                        // Debounce: 200ms
-                        if (now - micCalibRef.current.lastHitTime > 200) {
-                            micCalibRef.current.lastHitTime = now;
-                            hits++;
-                            collectedPeaks.push(lvl);
-                            console.log('Calib Hit!', hits, lvl);
-
-                            setMicCalibState(prev => ({
-                                ...prev,
-                                hitCount: hits,
-                                signalPeaks: [...prev.signalPeaks, lvl],
-                                message: `Hit Detected! ${hits}/5`
-                            }));
-
-                            if (hits >= 5) {
-                                // Done!
-                                finishMicCalibration(collectedPeaks);
-                            }
-                        }
-                    }
                 }
             }, 20);
 
-        }, 3000);
+            micCalibRef.current.timer = setTimeout(() => {
+                if (micCalibRef.current.poll) clearInterval(micCalibRef.current.poll);
+                micCalibRef.current.poll = null;
+                micCalibRef.current.timer = null;
+
+                const bleed = micCalibRef.current.maxPeak;
+                console.log('[MicCalib] Bleed Peak:', bleed);
+
+                // Determine Effective Noise Floor
+                // If bleed is significantly higher than noise, use bleed as floor.
+                // But if bleed is HUGE (feedback loop), we might need to be careful?
+                // For now, simple max.
+
+                setMicCalibState(prev => ({
+                    active: true,
+                    step: 'signal',
+                    noisePeak: noise,
+                    bleedPeak: bleed,
+                    signalPeaks: [],
+                    hitCount: 0,
+                    message: 'Now HIT the pad 5 times!'
+                }));
+
+                // Step 2: Measure Signal
+                micCalibRef.current.maxPeak = 0; // Reset max for signal phase
+                micCalibRef.current.startTime = Date.now();
+                micCalibRef.current.lastHitTime = 0;
+                const collectedPeaks: number[] = [];
+                let hits = 0;
+
+                // Determine Hit Threshold (temporary for detection)
+                // Must be above noise AND bleed
+                const detectionFloor = Math.max(noise, bleed);
+                const detectionThresh = Math.max(detectionFloor * 1.5, 0.03);
+
+                // Re-start polling for signal detection
+                micCalibRef.current.poll = setInterval(() => {
+                    if (micAnalyzerRef.current) {
+                        const lvl = micAnalyzerRef.current.currentLevel;
+                        const now = Date.now();
+
+                        // Track global max for safety
+                        if (lvl > micCalibRef.current.maxPeak) micCalibRef.current.maxPeak = lvl;
+
+                        // Hit Detection Logic
+                        if (lvl > detectionThresh) {
+                            // Debounce: 200ms
+                            if (now - micCalibRef.current.lastHitTime > 200) {
+                                micCalibRef.current.lastHitTime = now;
+                                hits++;
+                                collectedPeaks.push(lvl);
+                                console.log('Calib Hit!', hits, lvl);
+
+                                setMicCalibState(prev => ({
+                                    ...prev,
+                                    hitCount: hits,
+                                    signalPeaks: [...prev.signalPeaks, lvl],
+                                    message: `Hit Detected! ${hits}/5`
+                                }));
+
+                                if (hits >= 5) {
+                                    // Done!
+                                    finishMicCalibration(collectedPeaks);
+                                }
+                            }
+                        }
+                    }
+                }, 20);
+
+            }, 2500); // 2.5s for Bleed check
+
+        }, 3000); // 3s for Noise check
     };
 
     // Handle Signal Step in separate Effect to watch 'onsets'
@@ -243,6 +303,8 @@ export const Metronome: React.FC = () => {
         micCalibRef.current.timer = null;
 
         const noise = micCalibState.noisePeak;
+        const bleed = micCalibState.bleedPeak;
+
         // Use collected peaks if available, otherwise just maxPeak
         let signalMax = micCalibRef.current.maxPeak;
 
@@ -255,14 +317,26 @@ export const Metronome: React.FC = () => {
 
         console.log('[MicCalib] Signal Measure:', signalMax);
 
+        // Use Effective Floor
+        const effectiveFloor = Math.max(noise, bleed);
+        console.log(`[MicCalib] Floor: ${effectiveFloor.toFixed(4)} (N:${noise.toFixed(4)}, B:${bleed.toFixed(4)})`);
+
         if (signalMax < 0.01) {
             // Failed to detect inputs
             setMicCalibState(prev => ({ ...prev, message: 'No signal detected. Try forcing Gain up.' }));
             setTimeout(() => {
-                setMicCalibState({ active: false, step: 'idle', noisePeak: 0, signalPeaks: [], hitCount: 0, message: '' });
+                setMicCalibState({ active: false, step: 'idle', noisePeak: 0, bleedPeak: 0, signalPeaks: [], hitCount: 0, message: '' });
                 setIsCalibrating(false);
+                stopAnalysis(); // Ensure mic is closed
             }, 2000);
             return;
+        }
+
+        // Warn if Bleed is too close to Signal
+        // If Bleed is > 50% of Signal, it's risky
+        if (bleed > signalMax * 0.6) {
+            setMicCalibState(prev => ({ ...prev, message: 'Warning: Click sound is too loud relative to hits. Reduce speaker volume or move mic.' }));
+            // We can still try to set something, but it will be hard.
         }
 
         // Calculate
@@ -272,12 +346,20 @@ export const Metronome: React.FC = () => {
 
         // Threshold Calculation
         const gainRatio = targetGain / micGain;
-        const projectedNoise = noise * gainRatio;
+        const projectedFloor = effectiveFloor * gainRatio;
         const projectedSignal = signalMax * gainRatio; // Should be ~0.5
 
-        // Set Threshold to 3x Noise (safer) or 15% of Signal
-        let targetThreshold = Math.max(projectedNoise * 3.0, projectedSignal * 0.15);
+        // Set Threshold
+        // Must be clear of Floor. Say 2.0x Floor? 
+        // But also needs to be sensitive enough for dynamics.
+        // Let's try: Max(Floor * 2.5, Signal * 0.15)
+        // If Floor is 0.1 (loud click), Thresh -> 0.25. Signal 0.5. Works.
+
+        let targetThreshold = Math.max(projectedFloor * 2.5, projectedSignal * 0.15);
         targetThreshold = Math.max(0.02, Math.min(0.5, targetThreshold));
+
+        // Safety: If Threshold ended up > Signal * 0.8 (too close to signal because floor was high), cap it?
+        // No, if floor is high, we MUST have high threshold or we get false positives.
 
         console.log(`[MicCalib] Result: Gain ${micGain.toFixed(1)}->${targetGain.toFixed(1)}, Thresh ${micThreshold.toFixed(3)}->${targetThreshold.toFixed(3)}`);
 
@@ -287,7 +369,7 @@ export const Metronome: React.FC = () => {
         setMicCalibState(prev => ({ ...prev, step: 'finished', message: `Complete! Gain: ${targetGain.toFixed(1)}, Thresh: ${targetThreshold.toFixed(2)}` }));
 
         setTimeout(() => {
-            setMicCalibState({ active: false, step: 'idle', noisePeak: 0, signalPeaks: [], hitCount: 0, message: '' });
+            setMicCalibState({ active: false, step: 'idle', noisePeak: 0, bleedPeak: 0, signalPeaks: [], hitCount: 0, message: '' });
             setIsCalibrating(false);
             stopAnalysis(); // Ensure mic is closed
         }, 3000);
@@ -296,7 +378,7 @@ export const Metronome: React.FC = () => {
     const cancelMicCalibration = () => {
         if (micCalibRef.current.poll) clearInterval(micCalibRef.current.poll);
         if (micCalibRef.current.timer) clearTimeout(micCalibRef.current.timer);
-        setMicCalibState({ active: false, step: 'idle', noisePeak: 0, signalPeaks: [], hitCount: 0, message: '' });
+        setMicCalibState({ active: false, step: 'idle', noisePeak: 0, bleedPeak: 0, signalPeaks: [], hitCount: 0, message: '' });
         setIsCalibrating(false);
         stopAnalysis(); // Ensure mic is closed
     };
@@ -498,6 +580,19 @@ export const Metronome: React.FC = () => {
         latestOffsetMs: offsetMs,
         feedback
     });
+
+    // Wrappers for settings updates
+    const handleSubdivisionChange = (sub: Subdivision) => {
+        setSubdivisionState(sub);
+        setSubdivision(sub);
+    };
+
+    const handleGapClickChange = (enabled: boolean, play: number, mute: number) => {
+        setGapEnabled(enabled);
+        setPlayBars(play);
+        setMuteBars(mute);
+        setGapClick(enabled, play, mute);
+    };
 
     const toggle = () => {
         // If Calibrating, toggle acts as Cancel
@@ -798,6 +893,22 @@ export const Metronome: React.FC = () => {
 
                         {/* Right: Tempo Controls */}
                         <div style={{ flex: 1, padding: '1rem 0.5rem', display: 'flex', flexDirection: 'column', gap: '0.2rem', minWidth: 0 }}>
+
+                            {/* NEW: Subdivision & GapClick & TEMPO Label */}
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', padding: '0 8px' }}>
+                                <SubdivisionControl
+                                    subdivision={subdivision}
+                                    onChange={handleSubdivisionChange}
+                                />
+                                <div style={{ fontSize: '0.7rem', color: 'var(--color-text-dim)', fontWeight: 'bold', letterSpacing: '1px' }}>TEMPO</div>
+                                <GapClickControl
+                                    enabled={gapEnabled}
+                                    playBars={playBars}
+                                    muteBars={muteBars}
+                                    onChange={handleGapClickChange}
+                                />
+                            </div>
+
                             <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '2px', flexWrap: 'wrap' }}>
                                 <button onClick={() => changeBpm(bpm - 10)} style={{ flex: 1, minWidth: '30px', padding: '6px 2px', background: 'transparent', border: '1px solid var(--color-border)', borderRadius: '4px', color: 'var(--color-text)', fontSize: '0.8rem' }}>-10</button>
                                 <button onClick={() => changeBpm(bpm - 1)} style={{ flex: 1, minWidth: '24px', padding: '6px 2px', background: 'transparent', border: '1px solid var(--color-border)', borderRadius: '4px', color: 'var(--color-text)', fontSize: '0.8rem' }}>-1</button>
@@ -818,7 +929,6 @@ export const Metronome: React.FC = () => {
                                 onChange={e => changeBpm(parseInt(e.target.value))}
                                 style={{ width: '95%', margin: '4px auto 0', accentColor: 'var(--color-primary)', cursor: 'pointer' }}
                             />
-                            <div style={{ textAlign: 'center', fontSize: '0.7rem', color: 'var(--color-text-dim)' }}>TEMPO</div>
                         </div>
                     </div>
 
@@ -839,8 +949,6 @@ export const Metronome: React.FC = () => {
 
                     {/* 4. Settings (Collapsible) */}
                     <MetronomeSettings
-                        onSubdivisionChange={setSubdivision}
-                        onGapClickChange={setGapClick}
                         onThemeChange={handleThemeChange}
                         isExpanded={settingsExpanded}
                         onToggleExpand={() => setSettingsExpanded(!settingsExpanded)}

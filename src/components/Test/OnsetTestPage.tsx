@@ -7,14 +7,22 @@ interface TestResult {
     error: number | null;
 }
 
+
 export const OnsetTestPage = () => {
     const [isRunning, setIsRunning] = useState(false);
     const [results, setResults] = useState<TestResult[]>([]);
+
     const [stats, setStats] = useState<{ avgError: number; jitter: number; missed: number; double: number } | null>(null);
+
+    // New controls
+    const [gain, setGain] = useState(5.0);
+    const [threshold, setThreshold] = useState(0.05); // Lower default
+    const [currentLevel, setCurrentLevel] = useState(0);
 
     const audioContextRef = useRef<AudioContext | null>(null);
     const analyzerRef = useRef<AudioAnalyzer | null>(null);
     const destinationRef = useRef<MediaStreamAudioDestinationNode | null>(null);
+    const meterFrameRef = useRef<number | null>(null);
 
     // Test parameters
     const ITERATIONS = 20;
@@ -35,22 +43,62 @@ export const OnsetTestPage = () => {
         const analyzer = new AudioAnalyzer(ctx);
         analyzerRef.current = analyzer;
 
+        // Synch initial values
+        analyzer.setGain(gain);
+        analyzer.setThreshold(threshold);
+
+        // Start level metering loop
+        const updateMeter = () => {
+            if (analyzerRef.current) {
+                // Smooth decay for visualization
+                setCurrentLevel(prev => Math.max(analyzerRef.current!.currentLevel, prev * 0.9));
+            }
+            meterFrameRef.current = requestAnimationFrame(updateMeter);
+        };
+        updateMeter();
+
         return () => {
             analyzer.stop();
             ctx.close();
+            if (meterFrameRef.current) cancelAnimationFrame(meterFrameRef.current);
         };
     }, []);
+
+    // Update analyzer when controls change
+    useEffect(() => {
+        if (analyzerRef.current) {
+            analyzerRef.current.setGain(gain);
+        }
+    }, [gain]);
+
+    useEffect(() => {
+        if (analyzerRef.current) {
+            analyzerRef.current.setThreshold(threshold);
+        }
+    }, [threshold]);
 
     const playClick = (time: number) => {
         if (!audioContextRef.current || !destinationRef.current) return;
 
         const ctx = audioContextRef.current;
         const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
+        const gainNode = ctx.createGain();
 
-        osc.connect(gain);
-        gain.connect(destinationRef.current); // Connect to the stream destination
-        gain.connect(ctx.destination); // Also connect to speakers so we can hear it
+        osc.connect(gainNode);
+        gainNode.connect(destinationRef.current); // Connect to the stream destination
+        // gain.connect(ctx.destination); // Optional: Monitor locally? Maybe annoying if gain is high. 
+        // Let's keep it audible but maybe lower volume for monitoring?
+        // Actually, the user wants to test mic detection, so this test page is a "Simulation" using Loopback.
+        // For real microphone testing, we probably need a "Live Mic Mode" switch?
+        // The current implementation is "Simulation Mode" (Oscillator -> Stream -> Analyzer).
+        // Since the user needs to test MIC GAIN, they likely want to see the meter react to their voice.
+
+        // Wait, the previous useEffect creates 'analyzer' but doesn't start it until 'startTest' is clicked?
+        // Ah, startTest calls `start(destinationRef.current.stream)`.
+
+        // We probably want a "Monitor Mic" button to test real world levels.
+
+        gainNode.connect(ctx.destination);
 
         osc.frequency.value = 1000;
         osc.type = 'square';
@@ -59,11 +107,18 @@ export const OnsetTestPage = () => {
         osc.start(time);
         osc.stop(time + 0.05);
 
-        // Envelope to avoid clicking artifacts
-        gain.gain.setValueAtTime(0, time);
-        gain.gain.linearRampToValueAtTime(0.5, time + 0.005);
-        gain.gain.exponentialRampToValueAtTime(0.001, time + 0.05);
+        // Envelope
+        gainNode.gain.setValueAtTime(0, time);
+        gainNode.gain.linearRampToValueAtTime(0.5, time + 0.005);
+        gainNode.gain.exponentialRampToValueAtTime(0.001, time + 0.05);
     };
+
+    // ... startTest, finishTest, processResults (mostly unchanged) ...
+    // I need to include them to keep the file valid since I'm blocking replacing.
+
+    // ... wait, I should just use replace_file_content properly.
+    // I can't selectively keep parts with this tool unless I use multi_replace or match exact blocks.
+    // Since I'm essentially rewriting the top half and the render logic, let's paste the logic back in.
 
     const startTest = useCallback(async () => {
         if (!audioContextRef.current || !analyzerRef.current || !destinationRef.current) return;
@@ -75,7 +130,9 @@ export const OnsetTestPage = () => {
         detectedTimesRef.current = [];
 
         const ctx = audioContextRef.current;
-        await ctx.resume();
+        if (ctx.state === 'suspended') {
+            await ctx.resume();
+        }
 
         // Start Analyzer
         analyzerRef.current.onOnset = (time) => {
@@ -83,10 +140,11 @@ export const OnsetTestPage = () => {
             detectedTimesRef.current.push(time);
         };
 
+        // Note: For this automated test, we use the internal stream.
         await analyzerRef.current.start(destinationRef.current.stream);
 
         // Schedule clicks
-        const startTime = ctx.currentTime + 1.0; // Start 1 second from now
+        const startTime = ctx.currentTime + 1.0;
 
         for (let i = 0; i < ITERATIONS; i++) {
             const time = startTime + i * INTERVAL;
@@ -94,7 +152,6 @@ export const OnsetTestPage = () => {
             playClick(time);
         }
 
-        // Finish test after all clicks + buffer
         setTimeout(() => {
             finishTest();
         }, (ITERATIONS * INTERVAL + 2) * 1000);
@@ -103,10 +160,8 @@ export const OnsetTestPage = () => {
 
     const finishTest = () => {
         if (!analyzerRef.current) return;
-
         analyzerRef.current.stop();
         setIsRunning(false);
-
         processResults();
     };
 
@@ -120,16 +175,13 @@ export const OnsetTestPage = () => {
         let missed = 0;
         let double = 0;
 
-        // Simple matching logic: find closest detection for each scheduled time
         scheduled.forEach((sTime) => {
-            // Find detections within a window (e.g., +/- 100ms)
             const matches = detected.filter(d => Math.abs(d - sTime) < 0.1);
 
             if (matches.length === 0) {
                 finalResults.push({ scheduledTime: sTime, detectedTime: null, error: null });
                 missed++;
             } else {
-                // Take the first one (or closest)
                 const closest = matches.reduce((prev, curr) =>
                     Math.abs(curr - sTime) < Math.abs(prev - sTime) ? curr : prev
                 );
@@ -144,10 +196,8 @@ export const OnsetTestPage = () => {
             }
         });
 
-        // Calculate stats
         const avgError = validDetections > 0 ? (totalError / validDetections) * 1000 : 0; // ms
 
-        // Jitter (Standard Deviation of error)
         let variance = 0;
         if (validDetections > 0) {
             const mean = totalError / validDetections;
@@ -158,17 +208,121 @@ export const OnsetTestPage = () => {
         const jitter = Math.sqrt(variance) * 1000; // ms
 
         setResults(finalResults);
-        setStats({
-            avgError,
-            jitter,
-            missed,
-            double
-        });
+        setStats({ avgError, jitter, missed, double });
     };
+
+    // New: Manual Mic Test Mode helper
+    const startMicTest = async () => {
+        if (!audioContextRef.current || !analyzerRef.current) return;
+        const ctx = audioContextRef.current;
+        if (ctx.state === 'suspended') await ctx.resume();
+
+        // Pass undefined to use default microphone
+        await analyzerRef.current.start();
+    };
+
+    const stopMicTest = () => {
+        analyzerRef.current?.stop();
+    };
+
 
     return (
         <div style={{ padding: '2rem', maxWidth: '800px', margin: '0 auto', color: 'white' }}>
-            <h2>Onset Detection Self-Test</h2>
+            <h2>Onset Detection Calibration</h2>
+
+            <div style={{
+                backgroundColor: '#333',
+                padding: '1.5rem',
+                borderRadius: '8px',
+                marginBottom: '2rem',
+                border: '1px solid #555'
+            }}>
+                <h3>Configuration</h3>
+
+                <div style={{ marginBottom: '1rem' }}>
+                    <label style={{ display: 'block', marginBottom: '0.5rem' }}>Gain (Boost): {gain.toFixed(1)}x</label>
+                    <input
+                        type="range"
+                        min="1.0"
+                        max="10.0"
+                        step="0.1"
+                        value={gain}
+                        onChange={(e) => setGain(parseFloat(e.target.value))}
+                        style={{ width: '100%' }}
+                    />
+                </div>
+
+                <div style={{ marginBottom: '1rem' }}>
+                    <label style={{ display: 'block', marginBottom: '0.5rem' }}>Threshold (Sensitivity): {threshold.toFixed(3)}</label>
+                    <input
+                        type="range"
+                        min="0.01"
+                        max="0.5"
+                        step="0.01"
+                        value={threshold}
+                        onChange={(e) => setThreshold(parseFloat(e.target.value))}
+                        style={{ width: '100%' }}
+                    />
+                </div>
+
+                <div style={{ marginBottom: '1rem' }}>
+                    <label style={{ display: 'block', marginBottom: '0.5rem' }}>Input Level</label>
+                    <div style={{ width: '100%', height: '20px', backgroundColor: '#222', borderRadius: '4px', overflow: 'hidden', position: 'relative' }}>
+                        {/* Threshold Marker */}
+                        <div style={{
+                            position: 'absolute',
+                            left: `${Math.min(threshold * 100, 100)}%`,
+                            top: 0,
+                            bottom: 0,
+                            width: '2px',
+                            backgroundColor: 'red',
+                            zIndex: 10
+                        }} />
+
+                        {/* Level Bar */}
+                        <div style={{
+                            width: `${Math.min(currentLevel * 100, 100)}%`,
+                            height: '100%',
+                            backgroundColor: currentLevel > threshold ? '#4CAF50' : '#2196F3',
+                            transition: 'width 0.1s ease-out'
+                        }} />
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: '#888', marginTop: '4px' }}>
+                        <span>0.0</span>
+                        <span>0.5</span>
+                        <span>1.0</span>
+                    </div>
+                </div>
+
+                <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem' }}>
+                    <button
+                        onClick={startMicTest}
+                        style={{
+                            padding: '0.8rem 1.5rem',
+                            backgroundColor: '#FF9800',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '4px',
+                            cursor: 'pointer'
+                        }}
+                    >
+                        Test Mic Input (Live)
+                    </button>
+                    <button
+                        onClick={stopMicTest}
+                        style={{
+                            padding: '0.8rem 1.5rem',
+                            backgroundColor: '#444',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '4px',
+                            cursor: 'pointer'
+                        }}
+                    >
+                        Stop Mic
+                    </button>
+                </div>
+            </div>
 
             <div style={{ marginBottom: '2rem' }}>
                 <button
@@ -184,7 +338,7 @@ export const OnsetTestPage = () => {
                         cursor: isRunning ? 'not-allowed' : 'pointer'
                     }}
                 >
-                    {isRunning ? 'Running Test...' : 'Start Test'}
+                    {isRunning ? 'Running Loopback Test...' : 'Start Loopback Test'}
                 </button>
             </div>
 

@@ -3,13 +3,19 @@ export class AudioAnalyzer {
     public mediaStream: MediaStream | null = null;
     private source: MediaStreamAudioSourceNode | null = null;
     public analyser: AnalyserNode | null = null;
+    private gainNode: GainNode | null = null;
+    private filterNode: BiquadFilterNode | null = null;
     private inputBuffer: Float32Array | null = null;
 
     // Onset detection parameters
     private readonly bufferSize = 2048;
-    private readonly threshold = 0.15; // Simple energy threshold
+    private threshold = 0.05; // Default lower threshold since we have clean signal
+    public currentGain = 5.0; // Default 5x gain
     private lastOnset: number = 0;
     private minInterOnsetInterval = 0.1; // 100ms debounce
+
+    // For UI visualization
+    public currentLevel: number = 0;
 
     // Callback when a hit is detected
     public onOnset: ((time: number) => void) | null = null;
@@ -45,7 +51,18 @@ export class AudioAnalyzer {
             this.analyser = this.audioContext.createAnalyser();
             this.analyser.fftSize = this.bufferSize;
 
-            this.source.connect(this.analyser);
+            // Create filter and gain nodes
+            this.filterNode = this.audioContext.createBiquadFilter();
+            this.filterNode.type = 'highpass';
+            this.filterNode.frequency.value = 150; // Cut low rumble
+
+            this.gainNode = this.audioContext.createGain();
+            this.gainNode.gain.value = this.currentGain;
+
+            // Connect: Source -> Filter -> Gain -> Analyser
+            this.source.connect(this.filterNode);
+            this.filterNode.connect(this.gainNode);
+            this.gainNode.connect(this.analyser);
 
             this.inputBuffer = new Float32Array(this.analyser.fftSize);
             this.isRunning = true;
@@ -67,11 +84,28 @@ export class AudioAnalyzer {
             this.mediaStream.getTracks().forEach(track => track.stop());
             this.mediaStream = null;
         }
-        if (this.source) {
-            this.source.disconnect();
-            this.source = null;
-        }
+
+        // Disconnect nodes to avoid memory leaks
+        if (this.source) this.source.disconnect();
+        if (this.filterNode) this.filterNode.disconnect();
+        if (this.gainNode) this.gainNode.disconnect();
+
+        this.source = null;
+        this.filterNode = null;
+        this.gainNode = null;
+
         console.log('Audio analysis stopped');
+    }
+
+    public setGain(value: number) {
+        this.currentGain = value;
+        if (this.gainNode) {
+            this.gainNode.gain.value = value;
+        }
+    }
+
+    public setThreshold(value: number) {
+        this.threshold = value;
     }
 
     private analyzeLoop() {
@@ -93,13 +127,7 @@ export class AudioAnalyzer {
             sum += abs * abs;
         }
 
-        // const rms = Math.sqrt(sum / this.inputBuffer.length);
-
-        // Use peak amplitude for threshold check as it's more sensitive for sharp clicks
-        // But keep RMS for general noise gate if needed. 
-        // For now, let's Stick to RMS or Peak? 
-        // The user complained about double detections.
-        // Let's use a hybrid: Threshold check.
+        this.currentLevel = peakAmplitude;
 
         if (peakAmplitude > this.threshold) {
             const now = this.audioContext.currentTime;

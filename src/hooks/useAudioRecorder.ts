@@ -15,7 +15,9 @@ export const useAudioRecorder = () => {
         try {
             // Detect supported MIME type
             let mimeType = 'audio/webm';
-            const types = ['audio/webm', 'audio/mp4', 'audio/ogg', 'audio/wav'];
+            // Safari/iOS prefers mp4. Chrome prefers webm/ogg.
+            // Check mp4 first for better iOS compatibility.
+            const types = ['audio/mp4', 'audio/webm', 'audio/ogg', 'audio/wav'];
             for (const type of types) {
                 if (MediaRecorder.isTypeSupported(type)) {
                     mimeType = type;

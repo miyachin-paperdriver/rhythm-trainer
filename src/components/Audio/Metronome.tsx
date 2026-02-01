@@ -8,6 +8,7 @@ import { MetronomeSettings } from '../Controls/MetronomeSettings';
 import { PatternVisualizer } from '../Visualizer/PatternVisualizer';
 import { WaveformVisualizer } from '../Audio/WaveformVisualizer';
 import { HistoryView } from '../Analysis/HistoryView';
+import { TimingGauge } from '../Visualizer/TimingGauge';
 import { PATTERNS } from '../../utils/patterns';
 export const Metronome: React.FC = () => {
     // ---- State ----
@@ -162,23 +163,16 @@ export const Metronome: React.FC = () => {
 
                     </div>
 
-                    {/* Feedback Display (Moved below visualizer) */}
-                    <div style={{ height: '40px', display: 'flex', justifyContent: 'center', alignItems: 'center', marginBottom: '0.5rem' }}>
-                        {feedback && (
-                            <div style={{
-                                padding: '0.5rem 1.5rem',
-                                borderRadius: '50px',
-                                background: feedback === 'Perfect' ? 'var(--color-success)' :
-                                    feedback === 'Good' ? 'var(--color-accent)' : 'var(--color-error)',
-                                color: '#fff',
-                                fontWeight: 'bold',
-                                boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
-                                fontSize: '1.2rem',
-                                transition: 'all 0.1s'
-                            }}>
-                                {feedback} {Math.abs(Math.round(offsetMs))}ms {offsetMs > 0 ? 'Late' : 'Early'}
-                            </div>
-                        )}
+                    {/* Feedback Display (Gauge) */}
+                    <div style={{ height: '50px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', marginBottom: '0.5rem' }}>
+                        {feedback ? (
+                            <>
+                                <TimingGauge offsetMs={offsetMs} feedback={feedback} />
+                                <div style={{ fontSize: '0.8rem', fontWeight: 'bold', color: feedback === 'Perfect' ? 'var(--color-success)' : feedback === 'Good' ? 'var(--color-accent)' : 'var(--color-error)', marginTop: '2px' }}>
+                                    {Math.round(Math.abs(offsetMs))}ms
+                                </div>
+                            </>
+                        ) : <div style={{ height: '24px' }}></div>}
                     </div>
 
                     {/* 2. Unified Control Panel (Start/Stop + Tempo) */}

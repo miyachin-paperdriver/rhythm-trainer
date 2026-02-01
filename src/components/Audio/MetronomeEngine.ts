@@ -59,8 +59,9 @@ export class MetronomeEngine {
 
     private unlockAudioContext() {
         if (!this.audioContext) return;
-        // Create a buffer of 0.5s silence
-        const buffer = this.audioContext.createBuffer(1, 10000, 44100);
+        // Create a buffer of 2s silence to ensure hardware stays awake during the 600ms wait
+        const length = this.audioContext.sampleRate * 2; // 2 seconds
+        const buffer = this.audioContext.createBuffer(1, length, this.audioContext.sampleRate);
         const source = this.audioContext.createBufferSource();
         source.buffer = buffer;
         source.connect(this.audioContext.destination);

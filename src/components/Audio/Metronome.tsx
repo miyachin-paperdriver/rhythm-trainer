@@ -81,6 +81,12 @@ export const Metronome: React.FC = () => {
         micAnalyzerRef.current = analyzer;
     }, [analyzer]);
 
+    // Mirror AudioContext in ref for async access (fix for 1st run issue)
+    const audioContextRef = React.useRef<AudioContext | null>(null);
+    useEffect(() => {
+        audioContextRef.current = audioContext;
+    }, [audioContext]);
+
     // ---- Mic Auto Calibration ----
     const [micCalibState, setMicCalibState] = useState<{
         active: boolean,
@@ -107,11 +113,23 @@ export const Metronome: React.FC = () => {
         setMicCalibState({ active: true, step: 'noise', noisePeak: 0, bleedPeak: 0, signalPeaks: [], hitCount: 0, message: 'Starting... Please wait.' });
 
         // 2. Ensure Audio Context exists (resume/create)
-        if (!audioContext) {
+        if (!audioContextRef.current) {
             console.log('[MicCalib] Init Audio Context...');
-            initializeAudio();
-            // Simple wait for state update propagation
-            await new Promise(r => setTimeout(r, 500));
+            initializeAudio(); // This triggers state update -> effect -> ref update
+            // Wait for ref to populate
+            let retries = 0;
+            while (!audioContextRef.current && retries < 20) {
+                await new Promise(r => setTimeout(r, 100));
+                retries++;
+            }
+        }
+
+        // Resume if suspended (important for sound on first click)
+        if (audioContextRef.current?.state === 'suspended') {
+            try {
+                await audioContextRef.current.resume();
+                console.log('[MicCalib] Resumed Audio Context');
+            } catch (e) { console.error(e); }
         }
 
         // 3. Wait for Analyzer to be populated (via Effect)
@@ -171,15 +189,16 @@ export const Metronome: React.FC = () => {
             setMicCalibState(prev => ({ ...prev, step: 'bleed', noisePeak: noise, message: 'Measuring Click Sound... Stay Quiet.' }));
 
             // Generate Clicks
-            if (audioContext) {
-                const now = audioContext.currentTime;
+            const ctx = audioContextRef.current;
+            if (ctx) {
+                const now = ctx.currentTime;
                 // Play 4 clicks over 2 seconds
                 const times = [now + 0.5, now + 1.0, now + 1.5, now + 2.0];
                 times.forEach(t => {
-                    const osc = audioContext.createOscillator();
-                    const gain = audioContext.createGain();
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
                     osc.connect(gain);
-                    gain.connect(audioContext.destination);
+                    gain.connect(ctx.destination);
                     osc.frequency.value = 1000; // High pitch to test basic bleed
                     gain.gain.setValueAtTime(0, t);
                     gain.gain.linearRampToValueAtTime(0.8, t + 0.01);

@@ -60,9 +60,15 @@ export class MetronomeEngine {
 
     private unlockAudioContext() {
         if (!this.audioContext) return;
-        // Create a buffer of 2s silence to ensure hardware stays awake during the 600ms wait
-        const length = this.audioContext.sampleRate * 2; // 2 seconds
+        // Create a buffer of 0.5s faint noise (instead of silence) to force hardware engagement
+        // Silence is sometimes optimized out by iOS Audio mixing.
+        const length = this.audioContext.sampleRate * 0.5;
         const buffer = this.audioContext.createBuffer(1, length, this.audioContext.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < length; i++) {
+            data[i] = (Math.random() * 2 - 1) * 0.001; // Very faint white noise
+        }
+
         const source = this.audioContext.createBufferSource();
         source.buffer = buffer;
         source.connect(this.audioContext.destination);

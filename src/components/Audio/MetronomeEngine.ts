@@ -33,11 +33,12 @@ export class MetronomeEngine {
         }
     }
 
-    public start() {
+    public async start() {
         if (this.isPlaying) return;
         this.init();
+
         if (this.audioContext?.state === 'suspended') {
-            this.audioContext.resume();
+            await this.audioContext.resume();
         }
 
         this.isPlaying = true;

@@ -24,7 +24,7 @@ export const Metronome: React.FC = () => {
 
     // Mic Settings State
     const [micGain, setMicGain] = useState(() => Number(localStorage.getItem('micGain') || 7.0));
-    const [micThreshold, setMicThreshold] = useState(() => Number(localStorage.getItem('micThreshold') || 0.05));
+    const [micThreshold, setMicThreshold] = useState(() => Number(localStorage.getItem('micThreshold') || 0.1));
 
     // Auto Calibration State
     const [isCalibrating, setIsCalibrating] = useState(false);

@@ -7,7 +7,7 @@ interface UseAudioAnalysisProps {
     threshold?: number;
 }
 
-export const useAudioAnalysis = ({ audioContext, gain = 5.0, threshold = 0.05 }: UseAudioAnalysisProps) => {
+export const useAudioAnalysis = ({ audioContext, gain = 5.0, threshold = 0.1 }: UseAudioAnalysisProps) => {
     const analyzerRef = useRef<AudioAnalyzer | null>(null);
     const [isMicReady, setIsMicReady] = useState(false);
     const [onsets, setOnsets] = useState<number[]>([]);

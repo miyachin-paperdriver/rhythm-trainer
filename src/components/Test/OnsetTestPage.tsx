@@ -16,7 +16,7 @@ export const OnsetTestPage = () => {
 
     // New controls
     const [gain, setGain] = useState(5.0);
-    const [threshold, setThreshold] = useState(0.05); // Lower default
+    const [threshold, setThreshold] = useState(0.1); // Lower default
     const [currentLevel, setCurrentLevel] = useState(0);
 
     const audioContextRef = useRef<AudioContext | null>(null);

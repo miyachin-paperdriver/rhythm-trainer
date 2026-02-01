@@ -26,9 +26,9 @@ export const Metronome: React.FC = () => {
         audioContext
     } = useMetronome();
 
-    const { isMicReady, startAnalysis, stopAnalysis, onsets, mediaStream } = useAudioAnalysis({ audioContext });
+    const { isMicReady, startAnalysis, stopAnalysis, clearOnsets, onsets, mediaStream } = useAudioAnalysis({ audioContext });
     const { feedback, offsetMs } = useRhythmScoring({ onsets, lastBeatTime, bpm });
-    const { startRecording, stopRecording, audioBlob, startTime, duration } = useAudioRecorder();
+    const { startRecording, stopRecording, clearRecording, audioBlob, startTime, duration } = useAudioRecorder();
 
     // ---- Logic ----
     useSessionManager({
@@ -45,6 +45,10 @@ export const Metronome: React.FC = () => {
             stopRecording();
             stopAnalysis(); // Always stop mic
         } else {
+            // Clear previous session data immediately on start
+            clearRecording();
+            clearOnsets();
+
             start();
             // Mic logic moved to useEffect to respect count-in
         }

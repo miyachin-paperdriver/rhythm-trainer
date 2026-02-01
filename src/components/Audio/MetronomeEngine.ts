@@ -74,10 +74,23 @@ export class MetronomeEngine {
 
     private bypassSilentSwitch() {
         // Play a tiny silent file to force the Audio Session category to 'Playback'
-        const audio = new Audio();
+        // appending to DOM might help with iOS persistence
+        const audio = document.createElement('audio');
         audio.src = 'data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//OEAAAAAAAAAAAAAAAAAAAAAAAASW5mbwAAAA8AAAAEAAABIADAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV6urq6urq6urq6urq6urq6urq6urq6urq6v////////////////////////////////8AAAAATGF2YzU4LjkxAAAAAAAAAAAAAAAAJAAAAAAAAAAAASAAAAAA//OEZAAAAAABIAAAACABHAAAAAAAAAAAAAA//OEZAAAAAABIAAAACABHAAAAAAAAAAAAAA//OEZAAAAAABIAAAACABHAAAAAAAAAAAAAA//OEZAAAAAABIAAAACABHAAAAAAAAAAAAAA//OEZAAAAAABIAAAACABHAAAAAAAAAAAAAA//OEZAAAAAABIAAAACABHAAAAAAAAAAAAAA';
         audio.volume = 0.01;
-        audio.play().catch(e => console.warn('Silent switch bypass failed', e));
+        audio.style.display = 'none';
+        document.body.appendChild(audio);
+
+        audio.play().then(() => {
+            // Cleanup after a bit? Or keep it? keeping it for a few seconds might be safer.
+            setTimeout(() => {
+                audio.pause();
+                audio.remove();
+            }, 3000); // 3 seconds of "playback mode" enforcement
+        }).catch(e => {
+            console.warn('Silent switch bypass failed', e);
+            audio.remove();
+        });
     }
 
     public stop() {

@@ -55,9 +55,17 @@ export const useAudioRecorder = () => {
 
     const timestampRef = useRef(0);
 
+    const clearRecording = useCallback(() => {
+        setAudioBlob(null);
+        chunksRef.current = [];
+        setDuration(0);
+        setStartTime(0);
+    }, []);
+
     return {
         startRecording,
         stopRecording,
+        clearRecording,
         audioBlob,
         startTime,
         duration

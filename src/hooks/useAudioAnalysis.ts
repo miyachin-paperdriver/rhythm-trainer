@@ -39,6 +39,11 @@ export const useAudioAnalysis = ({ audioContext }: UseAudioAnalysisProps) => {
         setIsMicReady(false);
     }, []);
 
+    const clearOnsets = useCallback(() => {
+        setOnsets([]);
+        setError(null);
+    }, []);
+
     // Auto start/stop based on playback or manual? 
     // Probably manual "Enable Mic" is safer first, then auto with playback.
     // For now we expose start/stop manually.
@@ -47,6 +52,7 @@ export const useAudioAnalysis = ({ audioContext }: UseAudioAnalysisProps) => {
         isMicReady,
         startAnalysis,
         stopAnalysis,
+        clearOnsets,
         onsets,
         error,
         mediaStream: analyzerRef.current?.mediaStream || null

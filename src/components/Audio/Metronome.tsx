@@ -117,8 +117,6 @@ export const Metronome: React.FC = () => {
             micCalibRef.current.maxPeak = 0; // Reset for signal
             micCalibRef.current.startTime = Date.now();
 
-            const signalSamples: number[] = [];
-
             // Re-start polling for signal detection
             micCalibRef.current.poll = setInterval(() => {
                 if (analyzer) {
@@ -166,7 +164,6 @@ export const Metronome: React.FC = () => {
 
             // Actually, we need multiple samples to be robust. 
             // Let's just update the message.
-            const count = onsets.filter(t => t * 1000 > micCalibRef.current.startTime).length;
             // note: onsets are audio time, startTime is Date.now(). Incompatible. 
             // We'll just count how many onsets added since step change.
             // Simpler: Just rely on the maxPeak observed during this 5s window.

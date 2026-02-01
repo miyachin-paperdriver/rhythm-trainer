@@ -13,12 +13,22 @@ export const useAudioRecorder = () => {
         setStartTime(currentTime);
 
         try {
-            const recorder = new MediaRecorder(stream);
+            // Detect supported MIME type
+            let mimeType = 'audio/webm';
+            const types = ['audio/webm', 'audio/mp4', 'audio/ogg', 'audio/wav'];
+            for (const type of types) {
+                if (MediaRecorder.isTypeSupported(type)) {
+                    mimeType = type;
+                    break;
+                }
+            }
+
+            const recorder = new MediaRecorder(stream, { mimeType });
             recorder.ondataavailable = (e) => {
                 if (e.data.size > 0) chunksRef.current.push(e.data);
             };
             recorder.onstop = () => {
-                const blob = new Blob(chunksRef.current, { type: 'audio/webm' }); // or 'audio/ogg'
+                const blob = new Blob(chunksRef.current, { type: mimeType });
                 setAudioBlob(blob);
                 setDuration((Date.now() - timestampRef.current) / 1000);
             };

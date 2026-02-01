@@ -160,23 +160,23 @@ export const Metronome: React.FC = () => {
                             </div>
                         )}
 
+                    </div>
+
+                    {/* Feedback Display (Moved below visualizer) */}
+                    <div style={{ height: '40px', display: 'flex', justifyContent: 'center', alignItems: 'center', marginBottom: '0.5rem' }}>
                         {feedback && (
                             <div style={{
-                                position: 'absolute',
-                                top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
-                                padding: '0.5rem 1.0rem',
+                                padding: '0.5rem 1.5rem',
                                 borderRadius: '50px',
-                                background: feedback === 'Perfect' ? 'rgba(0,255,100,0.9)' :
-                                    feedback === 'Good' ? 'rgba(0,200,255,0.9)' : 'rgba(255,50,50,0.9)',
+                                background: feedback === 'Perfect' ? 'var(--color-success)' :
+                                    feedback === 'Good' ? 'var(--color-accent)' : 'var(--color-error)',
                                 color: '#fff',
                                 fontWeight: 'bold',
-                                boxShadow: '0 4px 10px rgba(0,0,0,0.2)',
-                                pointerEvents: 'none',
-                                zIndex: 10,
-                                whiteSpace: 'nowrap',
-                                fontSize: '1.2rem'
+                                boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+                                fontSize: '1.2rem',
+                                transition: 'all 0.1s'
                             }}>
-                                {feedback} {offsetMs > 0 ? `+${Math.round(offsetMs)}` : `${Math.round(offsetMs)}`}ms
+                                {feedback} {Math.abs(Math.round(offsetMs))}ms {offsetMs > 0 ? 'Late' : 'Early'}
                             </div>
                         )}
                     </div>

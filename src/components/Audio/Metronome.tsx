@@ -602,6 +602,7 @@ export const Metronome: React.FC = () => {
 
     const { feedback, offsetMs } = useRhythmScoring({ onsets, lastBeatTime, bpm, audioLatency });
     const { startRecording, stopRecording, clearRecording, audioBlob, startTime, duration } = useAudioRecorder();
+    const recordingStartedRef = React.useRef(false);
 
     // ---- Logic ----
     const { lastSessionStats } = useSessionManager({
@@ -625,7 +626,7 @@ export const Metronome: React.FC = () => {
         setGapClick(enabled, play, mute);
     };
 
-    const toggle = () => {
+    const toggle = async () => {
         // If Calibrating, toggle acts as Cancel
         if (isCalibrating) {
             abortCalibration();
@@ -636,11 +637,28 @@ export const Metronome: React.FC = () => {
             stop();
             stopRecording();
             stopAnalysis(); // Always stop mic
+            recordingStartedRef.current = false;
         } else {
             // Clear previous session data immediately on start
             clearRecording();
             clearOnsets();
             setBeatHistory([]); // Clear history
+            recordingStartedRef.current = false;
+
+            if (!disableRecording) {
+                // Ensure AudioContext is active
+                if (audioContext?.state === 'suspended') {
+                    try { await audioContext.resume(); } catch (e) { console.warn(e); }
+                }
+                try {
+                    await startAnalysis();
+                } catch (e) {
+                    console.error("Mic failed", e);
+                    // Proceed anyway? Or stop? 
+                    // User likely wants to know, but let's let start() happen so they can at least play.
+                }
+            }
+
             start();
         }
     };
@@ -653,24 +671,22 @@ export const Metronome: React.FC = () => {
     }, [lastBeatTime, isPlaying, disableRecording, isCountIn]);
 
 
-    // Auto-record & Analysis when playing + mic ready + NOT count-in
+    // Auto-record & Analysis when playing + mic ready
+    // Fix: Allow recording/analysis during count-in to prevent delay at 1st beat
     useEffect(() => {
         if (isPlaying && !disableRecording) {
-            if (isCountIn) {
-                // During count-in: Stop/Don't start mic
-            } else {
-                // Count-in finished or not needed.
-                if (!isMicReady) {
-                    startAnalysis();
-                }
+            // Ensure mic analysis is running (fallback if toggle missed it)
+            if (!isMicReady) {
+                startAnalysis();
+            }
 
-                // Also start recording if stream ready
-                if (isMicReady && mediaStream) {
-                    startRecording(mediaStream, audioContext?.currentTime || 0);
-                }
+            // Start recording if stream is ready and we haven't started yet
+            if (isMicReady && mediaStream && !recordingStartedRef.current) {
+                startRecording(mediaStream, audioContext?.currentTime || 0);
+                recordingStartedRef.current = true;
             }
         }
-    }, [isPlaying, isCountIn, isMicReady, mediaStream, disableRecording, audioContext, startAnalysis, startRecording]);
+    }, [isPlaying, isMicReady, mediaStream, disableRecording, audioContext, startAnalysis, startRecording]);
 
     // Theme Handler
     const handleThemeChange = (theme: 'light' | 'dark') => {

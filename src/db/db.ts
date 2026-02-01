@@ -1,26 +1,46 @@
 import Dexie, { type Table } from 'dexie';
 
-
-
 export class RhythmTrainerDB extends Dexie {
     sessions!: Table<TrainingSession>;
+    session_details!: Table<SessionDetail>;
 
     constructor() {
         super('RhythmTrainerDB');
+
+        // Version 1
         this.version(1).stores({
             sessions: '++id, date, patternId, score'
+        });
+
+        // Version 2: Add detailed session storage
+        this.version(2).stores({
+            session_details: '++id, sessionId'
         });
     }
 }
 
 // Breakdown stats for a subset (L/R) or total
-interface SessionAnalysisStats {
+export interface SessionAnalysisStats {
     score: number;
     rank: string;
     accuracy: number;
     stdDev: number;
     tendency: number;
     hitCount: number;
+}
+
+export interface NoteHitDetail {
+    index: number;       // Sequencial index of the hit
+    timestamp: number;   // Relative time (ms) from session start
+    offset: number;      // Timing error in ms
+    hand: 'L' | 'R';     // Hand used
+    // Potential future fields: expectedTime, subdivision, etc.
+}
+
+export interface SessionDetail {
+    id?: number;
+    sessionId: number;   // Foreign Key to sessions.id
+    hits: NoteHitDetail[];
 }
 
 export interface TrainingSession {

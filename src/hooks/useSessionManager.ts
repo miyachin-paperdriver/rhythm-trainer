@@ -30,6 +30,8 @@ export interface SessionResult {
 interface RecordedHit {
     offset: number;
     hand: 'L' | 'R';
+    timestamp: number;
+    index: number;
 }
 
 export const useSessionManager = ({ isPlaying, bpm, patternId, latestOffsetMs, feedback, onsetIndex, hand = 'R' }: UseSessionManagerProps) => {
@@ -63,7 +65,16 @@ export const useSessionManager = ({ isPlaying, bpm, patternId, latestOffsetMs, f
         if (onsetIndex <= lastProcessedIndexRef.current) return;
 
         lastProcessedIndexRef.current = onsetIndex;
-        setHits(prev => [...prev, { offset: latestOffsetMs, hand }]);
+
+        // Calculate relative timestamp (ms)
+        const timestamp = Date.now() - startTimeRef.current;
+
+        setHits(prev => [...prev, {
+            offset: latestOffsetMs,
+            hand,
+            timestamp,
+            index: onsetIndex
+        }]);
     }, [latestOffsetMs, isPlaying, feedback, onsetIndex, hand]);
 
     const calculateRank = (score: number): string => {
@@ -136,7 +147,7 @@ export const useSessionManager = ({ isPlaying, bpm, patternId, latestOffsetMs, f
         const perfectCount = allOffsets.filter(o => Math.abs(o) <= 30).length;
 
         try {
-            await db.sessions.add({
+            const sessionId = await db.sessions.add({
                 date: new Date(),
                 patternId,
                 bpm,
@@ -155,7 +166,21 @@ export const useSessionManager = ({ isPlaying, bpm, patternId, latestOffsetMs, f
                 statsL: result.left,
                 statsR: result.right
             });
-            console.log('Session saved!', result);
+
+            // Save detailed logs
+            if (sessionId) {
+                await db.session_details.add({
+                    sessionId: sessionId as number,
+                    hits: hits.map(h => ({
+                        index: h.index,
+                        timestamp: h.timestamp,
+                        offset: h.offset,
+                        hand: h.hand
+                    }))
+                });
+            }
+
+            console.log('Session saved!', result, 'ID:', sessionId);
         } catch (e) {
             console.error('Failed to save session', e);
         }

@@ -41,6 +41,9 @@ export class MetronomeEngine {
             await this.audioContext.resume();
         }
 
+        // Force unlock by playing silent buffer (iOS workaround)
+        this.unlockAudioContext();
+
         this.isPlaying = true;
         this.beatNumber = 0;
         this.subBeatNumber = 0;
@@ -48,6 +51,15 @@ export class MetronomeEngine {
         this.stepNumber = 0;
         this.nextNoteTime = this.audioContext!.currentTime + 0.1;
         this.scheduler();
+    }
+
+    private unlockAudioContext() {
+        if (!this.audioContext) return;
+        const buffer = this.audioContext.createBuffer(1, 1, 22050);
+        const source = this.audioContext.createBufferSource();
+        source.buffer = buffer;
+        source.connect(this.audioContext.destination);
+        source.start(0);
     }
 
     public stop() {

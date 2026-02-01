@@ -77,6 +77,40 @@ export const WaveformVisualizer: React.FC<WaveformVisualizerProps> = ({ audioBlo
 
     }, [audioBuffer, onsets, startTime, duration]);
 
+    const [isPlaying, setIsPlaying] = React.useState(false);
+    const audioRef = useRef<HTMLAudioElement | null>(null);
+
+    const togglePlayback = () => {
+        if (isPlaying && audioRef.current) {
+            audioRef.current.pause();
+            audioRef.current.currentTime = 0;
+            setIsPlaying(false);
+        } else {
+            if (!audioBlob) return;
+
+            // If we have an existing audio element but it ended, reuse or recreate?
+            // Recreating is safer in case of blob URL issues or state drift
+            if (audioRef.current) {
+                audioRef.current.pause();
+            }
+
+            const url = URL.createObjectURL(audioBlob);
+            const audio = new Audio(url);
+
+            audio.onended = () => {
+                setIsPlaying(false);
+            };
+
+            audio.play().catch(e => {
+                console.error("Playback failed", e);
+                setIsPlaying(false);
+            });
+
+            audioRef.current = audio;
+            setIsPlaying(true);
+        }
+    };
+
     if (!audioBlob) return null;
 
     return (
@@ -90,23 +124,19 @@ export const WaveformVisualizer: React.FC<WaveformVisualizerProps> = ({ audioBlo
             />
             <div style={{ display: 'flex', gap: '1rem', marginTop: '0.5rem' }}>
                 <button
-                    onClick={() => {
-                        if (!audioBlob) return;
-                        const url = URL.createObjectURL(audioBlob);
-                        const a = new Audio(url);
-                        a.play();
-                    }}
+                    onClick={togglePlayback}
                     style={{
                         padding: '0.5rem 1rem',
-                        background: 'var(--color-primary)',
-                        color: '#000',
+                        background: isPlaying ? 'var(--color-accent)' : 'var(--color-primary)',
+                        color: isPlaying ? '#fff' : '#000',
                         border: 'none',
                         borderRadius: '4px',
                         fontWeight: 'bold',
-                        cursor: 'pointer'
+                        cursor: 'pointer',
+                        minWidth: '140px'
                     }}
                 >
-                    ▶ Play Recording
+                    {isPlaying ? '⏹ Stop' : '▶ Play Recording'}
                 </button>
             </div>
         </div>

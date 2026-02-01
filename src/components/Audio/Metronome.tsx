@@ -24,6 +24,13 @@ export const Metronome: React.FC = () => {
     // Auto Calibration State
     const [isCalibrating, setIsCalibrating] = useState(false);
 
+    // Debug State
+    const [debugLog, setDebugLog] = useState<string[]>([]);
+    const log = (msg: string) => {
+        console.log(msg);
+        setDebugLog(prev => [...prev.slice(-4), msg]); // Keep last 5
+    };
+
     // Beat History for Visualizer
     const [beatHistory, setBeatHistory] = useState<number[]>([]);
 
@@ -54,22 +61,26 @@ export const Metronome: React.FC = () => {
     const calibrationTimeoutRef = React.useRef<any>(null);
 
     const runCalibration = async () => {
+        setDebugLog([]); // Clear logs
+        log('[Init] Run Calibration');
+
         if (isPlaying) stop();
 
-        // Ensure Audio Context is ready
         if (!audioContext) {
+            log('[Init] No AudioContext, Init...');
             initializeAudio();
-            // Do not call startAnalysis yet, wait for effect
-        } else if (audioContext.state === 'suspended') {
-            try {
-                await audioContext.resume();
-                console.log('[AutoCheck] AudioContext resumed');
-            } catch (e) { console.error('[AutoCheck] Resume failed', e); }
+        } else {
+            log(`[Init] Ctx State: ${audioContext.state}`);
+            if (audioContext.state === 'suspended') {
+                try {
+                    await audioContext.resume();
+                    log('[Init] Resumed Context');
+                } catch (e) { log(`[Err] Resume Fail: ${e}`); }
+            }
         }
 
         setCalibrationState({ active: true, startTime: 0, samples: [], count: 0, status: 'waiting_mic' });
         setIsCalibrating(true);
-        console.log('[AutoCheck] Started process...');
     };
 
     const abortCalibration = () => {

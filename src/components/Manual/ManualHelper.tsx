@@ -1,6 +1,35 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 
 export const ManualHelper: React.FC = () => {
+    const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+    const [isIOS, setIsIOS] = useState(false);
+
+    useEffect(() => {
+        const handler = (e: any) => {
+            e.preventDefault();
+            setDeferredPrompt(e);
+        };
+        window.addEventListener('beforeinstallprompt', handler);
+
+        // Simple iOS detection
+        const userAgent = window.navigator.userAgent.toLowerCase();
+        setIsIOS(/iphone|ipad|ipod/.test(userAgent));
+
+        return () => window.removeEventListener('beforeinstallprompt', handler);
+    }, []);
+
+    const handleInstallClick = () => {
+        if (deferredPrompt) {
+            deferredPrompt.prompt();
+            deferredPrompt.userChoice.then((choiceResult: any) => {
+                if (choiceResult.outcome === 'accepted') {
+                    console.log('User accepted the install prompt');
+                }
+                setDeferredPrompt(null);
+            });
+        }
+    };
+
     return (
         <div style={{
             padding: '1rem',
@@ -10,6 +39,54 @@ export const ManualHelper: React.FC = () => {
             margin: '0 auto',
             fontSize: '0.9rem'
         }}>
+            <div style={{ marginBottom: '2rem', background: 'rgba(0, 255, 255, 0.05)', padding: '1rem', borderRadius: '8px', border: '1px solid rgba(0, 255, 255, 0.2)' }}>
+                <h2 style={{ fontSize: '1.2rem', marginBottom: '0.5rem', color: 'var(--color-primary)', marginTop: 0 }}>
+                    Install App
+                </h2>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1rem' }}>
+                    <img src="/icon.png" alt="App Icon" style={{ width: '64px', height: '64px', borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.3)' }} />
+                    <div style={{ flex: 1 }}>
+                        <p style={{ margin: 0, fontSize: '0.9rem' }}>
+                            Add Rhythm Trainer to your home screen for the best experience (fullscreen, no URL bar).
+                        </p>
+                    </div>
+                </div>
+
+                {deferredPrompt && (
+                    <button
+                        onClick={handleInstallClick}
+                        style={{
+                            background: 'var(--color-primary)',
+                            color: '#000',
+                            border: 'none',
+                            padding: '0.6rem 1.2rem',
+                            borderRadius: '4px',
+                            fontWeight: 'bold',
+                            cursor: 'pointer',
+                            width: '100%',
+                            marginBottom: '0.5rem'
+                        }}
+                    >
+                        Add to Home Screen
+                    </button>
+                )}
+
+                {/* Show instructions if prompt is not available (e.g. iOS or already installed/unsupported) */}
+                {!deferredPrompt && (
+                    <div style={{ fontSize: '0.85rem', color: 'var(--color-text-dim)' }}>
+                        {isIOS ? (
+                            <p style={{ margin: 0 }}>
+                                <strong>iOS:</strong> Tap the <span style={{ textDecoration: 'underline' }}>Share</span> button in Safari, then scroll down and select <strong>"Add to Home Screen"</strong>.
+                            </p>
+                        ) : (
+                            <p style={{ margin: 0 }}>
+                                <strong>Android/Chrome:</strong> Tap the menu icon (⋮) and select <strong>"Install App"</strong> or <strong>"Add to Home Screen"</strong>.
+                            </p>
+                        )}
+                    </div>
+                )}
+            </div>
+
             <h2 style={{ fontSize: '1.2rem', marginBottom: '1rem', color: 'var(--color-primary)' }}>Initial Setup Guide</h2>
 
             <div style={{ marginBottom: '1.5rem' }}>

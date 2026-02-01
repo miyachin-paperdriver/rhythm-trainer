@@ -604,7 +604,7 @@ export const Metronome: React.FC = () => {
     const { startRecording, stopRecording, clearRecording, audioBlob, startTime, duration } = useAudioRecorder();
 
     // ---- Logic ----
-    useSessionManager({
+    const { lastSessionStats } = useSessionManager({
         isPlaying,
         bpm,
         patternId: selectedPatternId,
@@ -768,7 +768,12 @@ export const Metronome: React.FC = () => {
 
                     {/* Visualizer & Feedback */}
                     <div style={{ position: 'relative' }}>
-                        <PatternVisualizer pattern={selectedPattern} currentStep={currentStep} isPlaying={isPlaying} />
+                        <PatternVisualizer
+                            pattern={selectedPattern}
+                            currentStep={currentStep}
+                            isPlaying={isPlaying}
+                            subdivision={subdivision}
+                        />
 
                         {isPlaying && isCountIn && (
                             <div style={{
@@ -806,13 +811,13 @@ export const Metronome: React.FC = () => {
                                 backdropFilter: 'blur(4px)'
                             }}>
                                 <div>Calibrating... {calibrationState.count + 1}/5</div>
-                                <div style={{ fontSize: '0.8rem', opacity: 0.8 }}>
+                                <div style={{ fontSize: '0.85rem', opacity: 0.8 }}>
                                     {calibrationState.status === 'starting' || calibrationState.status === 'listening' ? 'Listening...' : (calibrationState.status === 'warmup' ? 'Warming up...' : 'Waiting for Mic...')}
                                 </div>
                                 <button
                                     onClick={abortCalibration}
                                     style={{
-                                        fontSize: '0.8rem',
+                                        fontSize: '0.85rem',
                                         padding: '0.3rem 0.6rem',
                                         background: '#333',
                                         border: '1px solid #666',
@@ -825,7 +830,7 @@ export const Metronome: React.FC = () => {
                                 </button>
                                 <div style={{
                                     marginTop: '4px',
-                                    fontSize: '0.65rem',
+                                    fontSize: '0.85rem',
                                     color: '#faad14',
                                     textAlign: 'center',
                                     lineHeight: '1.2'
@@ -834,7 +839,7 @@ export const Metronome: React.FC = () => {
                                 </div>
                                 <div style={{
                                     marginTop: '4px',
-                                    fontSize: '0.6rem',
+                                    fontSize: '0.85rem',
                                     color: '#aaa',
                                     textAlign: 'left',
                                     width: '100%',
@@ -903,7 +908,7 @@ export const Metronome: React.FC = () => {
                             </button>
                             {/* No Rec Toggle (compact) */}
                             <label style={{
-                                fontSize: '0.7rem',
+                                fontSize: '0.85rem',
                                 color: 'var(--color-text-dim)',
                                 display: 'flex',
                                 flexDirection: 'column',
@@ -931,7 +936,7 @@ export const Metronome: React.FC = () => {
                                     subdivision={subdivision}
                                     onChange={handleSubdivisionChange}
                                 />
-                                <div style={{ fontSize: '0.7rem', color: 'var(--color-text-dim)', fontWeight: 'bold', letterSpacing: '1px' }}>TEMPO</div>
+                                <div style={{ fontSize: '0.85rem', color: 'var(--color-text-dim)', fontWeight: 'bold', letterSpacing: '1px' }}>TEMPO</div>
                                 <GapClickControl
                                     enabled={gapEnabled}
                                     playBars={playBars}
@@ -941,15 +946,15 @@ export const Metronome: React.FC = () => {
                             </div>
 
                             <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '2px', flexWrap: 'wrap' }}>
-                                <button onClick={() => changeBpm(bpm - 10)} style={{ flex: 1, minWidth: '30px', padding: '6px 2px', background: 'transparent', border: '1px solid var(--color-border)', borderRadius: '4px', color: 'var(--color-text)', fontSize: '0.8rem' }}>-10</button>
-                                <button onClick={() => changeBpm(bpm - 1)} style={{ flex: 1, minWidth: '24px', padding: '6px 2px', background: 'transparent', border: '1px solid var(--color-border)', borderRadius: '4px', color: 'var(--color-text)', fontSize: '0.8rem' }}>-1</button>
+                                <button onClick={() => changeBpm(bpm - 10)} style={{ flex: 1, minWidth: '30px', padding: '6px 2px', background: 'transparent', border: '1px solid var(--color-border)', borderRadius: '4px', color: 'var(--color-text)', fontSize: '0.85rem' }}>-10</button>
+                                <button onClick={() => changeBpm(bpm - 1)} style={{ flex: 1, minWidth: '24px', padding: '6px 2px', background: 'transparent', border: '1px solid var(--color-border)', borderRadius: '4px', color: 'var(--color-text)', fontSize: '0.85rem' }}>-1</button>
 
                                 <div style={{ fontSize: '1.8rem', fontWeight: 'bold', color: 'var(--color-primary)', minWidth: '60px', textAlign: 'center', margin: '0 4px' }}>
                                     {bpm}
                                 </div>
 
-                                <button onClick={() => changeBpm(bpm + 1)} style={{ flex: 1, minWidth: '24px', padding: '6px 2px', background: 'transparent', border: '1px solid var(--color-border)', borderRadius: '4px', color: 'var(--color-text)', fontSize: '0.8rem' }}>+1</button>
-                                <button onClick={() => changeBpm(bpm + 10)} style={{ flex: 1, minWidth: '30px', padding: '6px 2px', background: 'transparent', border: '1px solid var(--color-border)', borderRadius: '4px', color: 'var(--color-text)', fontSize: '0.8rem' }}>+10</button>
+                                <button onClick={() => changeBpm(bpm + 1)} style={{ flex: 1, minWidth: '24px', padding: '6px 2px', background: 'transparent', border: '1px solid var(--color-border)', borderRadius: '4px', color: 'var(--color-text)', fontSize: '0.85rem' }}>+1</button>
+                                <button onClick={() => changeBpm(bpm + 10)} style={{ flex: 1, minWidth: '30px', padding: '6px 2px', background: 'transparent', border: '1px solid var(--color-border)', borderRadius: '4px', color: 'var(--color-text)', fontSize: '0.85rem' }}>+10</button>
                             </div>
 
                             {/* Slider */}
@@ -964,8 +969,80 @@ export const Metronome: React.FC = () => {
                     </div>
 
                     {/* Review Waveform */}
+                    {/* Review Waveform & Session Report */}
                     {!isPlaying && audioBlob && (
-                        <div style={{ width: '100%', overflow: 'hidden', borderRadius: 'var(--radius-md)' }}>
+                        <div style={{ width: '100%', overflow: 'hidden', borderRadius: 'var(--radius-md)', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+
+                            {/* Session Summary Panel */}
+                            {lastSessionStats && (
+                                <div style={{
+                                    display: 'flex',
+                                    justifyContent: 'space-between',
+                                    alignItems: 'center',
+                                    padding: '1rem',
+                                    background: 'var(--color-surface)',
+                                    borderRadius: 'var(--radius-md)',
+                                    border: '1px solid var(--color-border)'
+                                }}>
+                                    {/* Left: Rank & Score */}
+                                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: '80px' }}>
+                                        <div style={{
+                                            fontSize: '3rem',
+                                            fontWeight: '900',
+                                            lineHeight: 1,
+                                            color: lastSessionStats.rank === 'S' ? '#faad14' :
+                                                lastSessionStats.rank === 'A' ? '#52c41a' :
+                                                    lastSessionStats.rank === 'B' ? '#1890ff' :
+                                                        lastSessionStats.rank === 'C' ? '#fa8c16' : '#ff4d4f',
+                                            textShadow: '0 2px 4px rgba(0,0,0,0.3)'
+                                        }}>
+                                            {lastSessionStats.rank}
+                                        </div>
+                                        <div style={{ fontSize: '1rem', fontWeight: 'bold', color: '#ccc' }}>
+                                            {lastSessionStats.score} <span style={{ fontSize: '0.7rem' }}>pts</span>
+                                        </div>
+                                    </div>
+
+                                    {/* Right: Metrics Bars */}
+                                    <div style={{ flex: 1, marginLeft: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                        {/* Accuracy Bar */}
+                                        <div>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', marginBottom: '2px', color: '#aaa' }}>
+                                                <span>TIMING ACCURACY</span>
+                                                <span>{Math.round(lastSessionStats.accuracy)}ms avg</span>
+                                            </div>
+                                            <div style={{ height: '6px', width: '100%', background: '#333', borderRadius: '3px', overflow: 'hidden' }}>
+                                                <div style={{
+                                                    height: '100%',
+                                                    width: `${Math.max(0, Math.min(100, 100 - (lastSessionStats.accuracy - 20) * (100 / 60)))}%`, // 20ms full, 80ms empty
+                                                    background: 'linear-gradient(90deg, #52c41a, #a0d911)'
+                                                }} />
+                                            </div>
+                                        </div>
+
+                                        {/* Stability Bar */}
+                                        <div>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', marginBottom: '2px', color: '#aaa' }}>
+                                                <span>STABILITY (SD)</span>
+                                                <span>{Math.round(lastSessionStats.stdDev)}ms</span>
+                                            </div>
+                                            <div style={{ height: '6px', width: '100%', background: '#333', borderRadius: '3px', overflow: 'hidden' }}>
+                                                <div style={{
+                                                    height: '100%',
+                                                    width: `${Math.max(0, Math.min(100, 100 - ((lastSessionStats.stdDev || 0) - 10) * (100 / 40)))}%`, // 10ms full, 50ms empty
+                                                    background: 'linear-gradient(90deg, #1890ff, #69c0ff)'
+                                                }} />
+                                            </div>
+                                        </div>
+
+                                        {/* Hit Count Label */}
+                                        <div style={{ textAlign: 'right', fontSize: '0.75rem', color: '#666', marginTop: '2px' }}>
+                                            Total Hits: {lastSessionStats.hitCount}
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
                             <WaveformVisualizer
                                 audioBlob={audioBlob}
                                 onsets={onsets}

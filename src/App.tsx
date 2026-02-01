@@ -21,7 +21,7 @@ function App() {
         position: 'fixed',
         bottom: '1rem',
         right: '1rem',
-        fontSize: '0.8rem',
+        fontSize: '0.85rem',
         color: 'var(--color-text-dim)',
         opacity: 0.5
       }}>

@@ -29,13 +29,13 @@ export const BPMControl: React.FC<BPMControlProps> = ({ bpm, setBpm, disabled })
             borderRadius: 'var(--radius-lg)',
             border: '1px solid #333'
         }}>
-            <div style={{ fontSize: '0.9rem', color: 'var(--color-text-dim)', textTransform: 'uppercase', letterSpacing: '1px' }}>
+            <div style={{ fontSize: '0.85rem', fontWeight: 'bold', color: 'var(--color-text-dim)', textTransform: 'uppercase', letterSpacing: '1px' }}>
                 Tempo (BPM)
             </div>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                <button onClick={() => adjust(-10)} disabled={disabled}>-10</button>
-                <button onClick={() => adjust(-1)} disabled={disabled}>-</button>
+                <button onClick={() => adjust(-10)} disabled={disabled} style={{ fontSize: '0.85rem' }}>-10</button>
+                <button onClick={() => adjust(-1)} disabled={disabled} style={{ fontSize: '0.85rem' }}>-</button>
 
                 <input
                     type="number"
@@ -53,8 +53,8 @@ export const BPMControl: React.FC<BPMControlProps> = ({ bpm, setBpm, disabled })
                     }}
                 />
 
-                <button onClick={() => adjust(1)} disabled={disabled}>+</button>
-                <button onClick={() => adjust(10)} disabled={disabled}>+10</button>
+                <button onClick={() => adjust(1)} disabled={disabled} style={{ fontSize: '0.85rem' }}>+</button>
+                <button onClick={() => adjust(10)} disabled={disabled} style={{ fontSize: '0.85rem' }}>+10</button>
             </div>
 
             <input

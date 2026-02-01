@@ -1,42 +1,45 @@
-import React, { useMemo, useRef } from 'react';
+import React, { useMemo } from 'react';
 import type { Pattern } from '../../utils/patterns';
+import type { Subdivision } from '../Audio/MetronomeEngine';
 
 interface PatternVisualizerProps {
     pattern: Pattern;
     currentStep: number;
     isPlaying: boolean;
+    subdivision: Subdivision;
 }
 
-export const PatternVisualizer: React.FC<PatternVisualizerProps> = ({ pattern, currentStep, isPlaying }) => {
-    const scrollContainerRef = useRef<HTMLDivElement>(null);
+export const PatternVisualizer: React.FC<PatternVisualizerProps> = ({ pattern, currentStep, isPlaying, subdivision }) => {
+    // const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-    // Expand pattern to 4 bars? Or just show 1 bar repeated?
-    // Assuming 16th notes usually fill a bar? Or pattern sequence length.
-    // Let's just repeat the sequence to fill "enough" space or 16/32 steps.
-    // For now, let's show 2 iterations of the pattern or fixed 16 slots.
-
-    // User asked for "Always 4 bars".
-    // 4 bars of 4/4 = 16 beats. 
-    // If subdivision is 16th, that's 64 steps. That's too long for mobile width.
-    // Maybe they meant "4 beats" or "1 full measure"? 
-    // "Paradiddle pattern is always 4 bars" -> likely 4 repetitions of the rudimentary pattern?
-    // Let's create a display sequence that repeats the pattern until length 16 (for 16th notes visually).
+    // Always show 4 bars
+    // Note count per bar = 4 beats * subdivision
+    const notesPerBar = 4 * subdivision;
+    const totalBars = 4;
+    const totalNotes = totalBars * notesPerBar;
 
     const displaySequence = useMemo(() => {
         const seq = [];
-        // Fill 16 slots (standard 1 bar of 16th notes or 4 bars of quarters)
-        // Adjust based on pattern length.
-        const targetDescLength = 16;
-        let i = 0;
-        while (seq.length < targetDescLength) {
-            seq.push({ hand: pattern.sequence[i % pattern.sequence.length], index: seq.length });
-            i++;
+        for (let i = 0; i < totalNotes; i++) {
+            seq.push({
+                hand: pattern.sequence[i % pattern.sequence.length],
+                index: i
+            });
         }
         return seq;
-    }, [pattern]);
+    }, [pattern, totalNotes]);
 
-    // Active index within the display sequence
-    const activeIndex = currentStep % displaySequence.length;
+    // Split sequence into bars
+    const bars = useMemo(() => {
+        const result = [];
+        for (let i = 0; i < totalBars; i++) {
+            result.push(displaySequence.slice(i * notesPerBar, (i + 1) * notesPerBar));
+        }
+        return result;
+    }, [displaySequence, notesPerBar, totalBars]);
+
+    // Active index handling (wrap around totalNotes)
+    const normalizedActiveIndex = currentStep % totalNotes;
 
     return (
         <div style={{
@@ -53,45 +56,65 @@ export const PatternVisualizer: React.FC<PatternVisualizerProps> = ({ pattern, c
                 {pattern.name}
             </h2>
 
-            <div
-                ref={scrollContainerRef}
-                style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(8, 1fr)', // 2 rows of 8
-                    gap: '4px',
-                    justifyContent: 'center',
-                    maxWidth: '100%'
-                }}
-            >
-                {displaySequence.map((item, idx) => {
-                    const isActive = isPlaying && idx === activeIndex;
-                    const isRight = item.hand === 'R';
-
-                    return (
-                        <div
-                            key={idx}
-                            style={{
-                                aspectRatio: '1/1',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                borderRadius: '8px',
-                                background: isActive
-                                    ? (isRight ? 'var(--color-primary)' : 'var(--color-accent)')
-                                    : 'var(--color-surface-hover)',
-                                color: isActive ? '#000' : (isRight ? 'var(--color-primary)' : 'var(--color-accent)'),
-                                fontWeight: 'bold',
-                                fontSize: '1.2rem',
-                                opacity: isActive ? 1 : 0.5,
-                                transform: isActive ? 'scale(1.1)' : 'scale(1)',
-                                transition: 'all 0.1s',
-                                border: isActive ? '2px solid #fff' : '1px solid transparent'
-                            }}
-                        >
-                            {item.hand}
+            <div className="visualizer-grid">
+                {bars.map((bar, barIndex) => (
+                    <div
+                        key={barIndex}
+                        className="visualizer-bar"
+                    >
+                        <div style={{
+                            fontSize: '0.7rem',
+                            color: 'var(--color-text-dim)',
+                            marginBottom: '0.2rem',
+                            alignSelf: 'flex-start',
+                            fontWeight: 'bold',
+                            paddingLeft: '0.2rem'
+                        }}>
+                            Bar {barIndex + 1}
                         </div>
-                    );
-                })}
+
+                        <div style={{
+                            display: 'grid',
+                            gridTemplateColumns: `repeat(${notesPerBar}, 1fr)`,
+                            gap: '2px', // Tighter gap
+                            width: '100%'
+                        }}>
+                            {bar.map((item) => {
+                                // const globalIndex = barIndex * notesPerBar + (item.index % notesPerBar);
+                                // Check if this item is the currently active one
+                                // We use exact match on index because displaySequence is exactly totalNotes long
+                                const isActive = isPlaying && normalizedActiveIndex === item.index;
+                                const isRight = item.hand === 'R';
+
+                                return (
+                                    <div
+                                        key={item.index}
+                                        style={{
+                                            // Removed aspectRatio to compress vertically
+                                            height: '2rem', // Fixed compact height
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            borderRadius: '4px',
+                                            background: isActive
+                                                ? (isRight ? 'var(--color-primary)' : 'var(--color-accent)')
+                                                : 'var(--color-surface-hover)',
+                                            color: isActive ? '#000' : (isRight ? 'var(--color-primary)' : 'var(--color-accent)'),
+                                            fontWeight: 'bold',
+                                            fontSize: subdivision >= 4 ? '0.8rem' : '1rem',
+                                            opacity: isActive ? 1 : 0.6,
+                                            transform: isActive ? 'scale(1.05)' : 'scale(1)',
+                                            boxShadow: isActive ? '0 0 4px rgba(255,255,255,0.4)' : 'none',
+                                            transition: 'all 0.05s',
+                                        }}
+                                    >
+                                        {item.hand}
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+                ))}
             </div>
         </div>
     );

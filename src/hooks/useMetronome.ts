@@ -15,28 +15,38 @@ export const useMetronome = () => {
     const [audioContext, setAudioContext] = useState<AudioContext | null>(null);
 
     useEffect(() => {
-        engineRef.current = new MetronomeEngine((beat, time, step, muted, countIn) => {
-            // Logic runs on main beats
+        engineRef.current = new MetronomeEngine((beat, time, _step, muted, countIn, _subBeat, tickIndex) => {
             const ctx = engineRef.current?.audioContext;
             if (!ctx) return;
 
             const now = ctx.currentTime;
             const diff = time - now;
 
-            if (diff > 0) {
-                setTimeout(() => {
-                    setCurrentBeat(beat);
-                    setCurrentStep(step);
-                    setLastBeatTime(time);
-                    setIsMuted(muted);
-                    setIsCountIn(countIn);
-                }, diff * 1000);
-            } else {
+            // Define update function to avoid duplication
+            const updateState = () => {
                 setCurrentBeat(beat);
-                setCurrentStep(step);
+                // Use tickIndex for visualizer step to advance on every subdivision
+                setCurrentStep(tickIndex);
+                // Only update lastBeatTime on main beats (subBeat === 0) to keep history clean?
+                // Or maybe we want history to have all ticks?
+                // The scoring hook uses lastBeatTime. If we update it on every subBeat, scoring might get confused 
+                // if it expects quarter notes.
+                // However, user might want to score against subdivisions too?
+                // For now, let's keep lastBeatTime updating only on main beats (subBeat === 0)
+                // BUT wait, if we only update it on subBeat 0, useRhythmScoring might miss sub-beats if it expects them.
+                // useRhythmScoring uses lastBeatTime to calculate offset.
+                // If the visualizer advances, the target time should probably advance too.
+                // So let's update lastBeatTime to 'time' (which is the current note time).
                 setLastBeatTime(time);
+
                 setIsMuted(muted);
                 setIsCountIn(countIn);
+            };
+
+            if (diff > 0) {
+                setTimeout(updateState, diff * 1000);
+            } else {
+                updateState();
             }
         });
         setAudioContext(engineRef.current?.audioContext || null);
@@ -47,15 +57,21 @@ export const useMetronome = () => {
     }, []);
 
     const start = useCallback(() => {
+        // Reset state immediately to prevent "flash" of previous state
+        setCurrentStep(-1);
+        setIsCountIn(true); // Engine always starts with count-in
+        setIsPlaying(true);
+
         engineRef.current?.start();
         setAudioContext(engineRef.current?.audioContext || null);
-        setIsPlaying(true);
     }, []);
 
     const stop = useCallback(() => {
         engineRef.current?.stop();
         setIsPlaying(false);
         setCurrentBeat(-1);
+        setCurrentStep(-1); // Reset step so next start doesn't show old position
+        setIsCountIn(false);
         setIsMuted(false);
     }, []);
 

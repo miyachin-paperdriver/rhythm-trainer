@@ -114,7 +114,7 @@ export const SubdivisionControl: React.FC<SubdivisionControlProps> = ({ subdivis
                     boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
                     minWidth: '120px'
                 }}>
-                    <div style={{ fontSize: '0.7rem', padding: '4px 8px', color: 'var(--color-text-dim)', textAlign: 'center', borderBottom: '1px solid var(--color-border)' }}>
+                    <div style={{ fontSize: '0.85rem', padding: '4px 8px', color: 'var(--color-text-dim)', textAlign: 'center', borderBottom: '1px solid var(--color-border)' }}>
                         SUBDIVISION
                     </div>
                     <div style={{ display: 'flex', gap: '4px', padding: '4px' }}>

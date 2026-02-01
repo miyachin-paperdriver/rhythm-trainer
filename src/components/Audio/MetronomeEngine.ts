@@ -19,11 +19,12 @@ export class MetronomeEngine {
     private beatNumber: number = 0; // 0..3 (for 4/4)
     private subBeatNumber: number = 0; // 0..subdivision-1
     private MeasureNumber: number = 0;
-    private stepNumber: number = 0; // Total steps (main beats)
+    private stepNumber: number = 0; // Total beats (Quarter notes)
+    private tickIndex: number = 0; // Grand total of scheduled ticks (subdivisions)
 
-    private onTick: ((beat: number, time: number, step: number, isMuted: boolean, isCountIn: boolean) => void) | null = null;
+    private onTick: ((beat: number, time: number, step: number, isMuted: boolean, isCountIn: boolean, subBeat: number, tickIndex: number) => void) | null = null;
 
-    constructor(onTick?: (beat: number, time: number, step: number, isMuted: boolean, isCountIn: boolean) => void) {
+    constructor(onTick?: (beat: number, time: number, step: number, isMuted: boolean, isCountIn: boolean, subBeat: number, tickIndex: number) => void) {
         if (onTick) this.onTick = onTick;
     }
 
@@ -54,6 +55,7 @@ export class MetronomeEngine {
         this.subBeatNumber = 0;
         this.MeasureNumber = -1; // Start with 1 bar count-in
         this.stepNumber = -4; // Assuming 4/4
+        this.tickIndex = -(4 * this.subdivision);
         this.nextNoteTime = this.audioContext!.currentTime + 0.1;
         this.scheduler();
     }
@@ -111,7 +113,7 @@ export class MetronomeEngine {
         this.muteBars = mute;
     }
 
-    public setOnTick(callback: (beat: number, time: number, step: number, isMuted: boolean, isCountIn: boolean) => void) {
+    public setOnTick(callback: (beat: number, time: number, step: number, isMuted: boolean, isCountIn: boolean, subBeat: number, tickIndex: number) => void) {
         this.onTick = callback;
     }
 
@@ -131,7 +133,10 @@ export class MetronomeEngine {
 
         this.nextNoteTime += secondsPerSub;
 
+        // Advance counters
+        this.tickIndex++;
         this.subBeatNumber++;
+
         if (this.subBeatNumber >= this.subdivision) {
             this.subBeatNumber = 0;
             this.beatNumber++;
@@ -159,8 +164,9 @@ export class MetronomeEngine {
             }
         }
 
-        if (subBeat === 0) {
-            if (this.onTick) this.onTick(beat, time, this.stepNumber, isMuted, isCountIn);
+        // Trigger onTick for EVERY scheduled note (beat or subdivision)
+        if (this.onTick) {
+            this.onTick(beat, time, this.stepNumber, isMuted, isCountIn, subBeat, this.tickIndex);
         }
 
         if (isMuted) return; // Don't play sound
@@ -185,6 +191,7 @@ export class MetronomeEngine {
         }
 
         // Volume Adjustment for subdivisions
+        // subBeat 0 is louder, others slightly quieter
         const volume = subBeat === 0 ? 1 : 0.5;
 
         gainNode.gain.setValueAtTime(0, time);

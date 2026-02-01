@@ -40,7 +40,7 @@ export const GapClickControl: React.FC<GapClickControlProps> = ({ enabled, playB
                     padding: '6px 12px',
                     cursor: 'pointer',
                     color: enabled ? '#fff' : 'var(--color-text)',
-                    fontSize: '0.8rem',
+                    fontSize: '0.85rem',
                     fontWeight: 'bold',
                     transition: 'all 0.2s'
                 }}
@@ -82,7 +82,7 @@ export const GapClickControl: React.FC<GapClickControlProps> = ({ enabled, playB
 
                         <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem' }}>
                             <div style={{ flex: 1 }}>
-                                <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--color-text-dim)', marginBottom: '4px' }}>Play Bars</label>
+                                <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--color-text-dim)', marginBottom: '4px' }}>Play Bars</label>
                                 <input
                                     type="number"
                                     min="1" max="16"
@@ -92,7 +92,7 @@ export const GapClickControl: React.FC<GapClickControlProps> = ({ enabled, playB
                                 />
                             </div>
                             <div style={{ flex: 1 }}>
-                                <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--color-text-dim)', marginBottom: '4px' }}>Mute Bars</label>
+                                <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--color-text-dim)', marginBottom: '4px' }}>Mute Bars</label>
                                 <input
                                     type="number"
                                     min="1" max="16"

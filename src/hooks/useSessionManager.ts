@@ -9,8 +9,19 @@ interface UseSessionManagerProps {
     feedback: string | null; // From useRhythmScoring
 }
 
+
+export interface SessionStats {
+    score: number;
+    rank: string;
+    accuracy: number;
+    stdDev: number;
+    hitCount: number;
+}
+
 export const useSessionManager = ({ isPlaying, bpm, patternId, latestOffsetMs, feedback }: UseSessionManagerProps) => {
     const [offsets, setOffsets] = useState<number[]>([]);
+    const [lastSessionStats, setLastSessionStats] = useState<SessionStats | null>(null);
+
     const isPlayingRef = useRef(false);
     const startTimeRef = useRef<number>(0);
 
@@ -19,6 +30,7 @@ export const useSessionManager = ({ isPlaying, bpm, patternId, latestOffsetMs, f
         if (isPlaying && !isPlayingRef.current) {
             // Started
             setOffsets([]);
+            setLastSessionStats(null); // Clear previous stats on new start
             startTimeRef.current = Date.now();
         } else if (!isPlaying && isPlayingRef.current) {
             // Stopped
@@ -28,21 +40,18 @@ export const useSessionManager = ({ isPlaying, bpm, patternId, latestOffsetMs, f
     }, [isPlaying]);
 
     // Record data
-    // We need a way to know if `latestOffsetMs` is NEW.
-    // `useRhythmScoring` updates it. But if the offset is identical (rare with floats), we might miss it?
-    // Or if feedback matches.
-    // Ideally useRhythmScoring should return a "judgmentId" or timestamp of judgment.
-    // For now, let's use a ref to store Last Processed Timestamp or something?
-    // Using `feedback` change as trigger is risky if feedback is same "Good" twice.
-    // I will rely on `latestOffsetMs` changing. It's a float, unlikely to be exact same twice unless 0.
-
     useEffect(() => {
         if (!isPlaying || feedback === null) return;
-
-        // Record it
         setOffsets(prev => [...prev, latestOffsetMs]);
-
     }, [latestOffsetMs, isPlaying, feedback]);
+
+    const calculateRank = (score: number): string => {
+        if (score >= 95) return 'S';
+        if (score >= 80) return 'A';
+        if (score >= 60) return 'B';
+        if (score >= 40) return 'C';
+        return 'D';
+    };
 
     const saveSession = async () => {
         if (offsets.length === 0) return;
@@ -53,15 +62,33 @@ export const useSessionManager = ({ isPlaying, bpm, patternId, latestOffsetMs, f
         const absOffsets = offsets.map(o => Math.abs(o));
         const avgAccuracy = absOffsets.reduce((a, b) => a + b, 0) / absOffsets.length;
 
+        // Standard Deviation
+        // avg signed offset to find variance from mean, OR variance from zero?
+        // Usually, consistency (stability) is StdDev of signed offsets.
+        const meanSigned = offsets.reduce((a, b) => a + b, 0) / offsets.length;
+        const variance = offsets.reduce((a, b) => a + Math.pow(b - meanSigned, 2), 0) / offsets.length;
+        const stdDev = Math.sqrt(variance);
+
         // Score calculation (0-100)
-        // < 30ms avg = 100
+        // < 20ms avg = 100 (Stricter!)
         // > 100ms avg = 0
-        const rawScore = 100 - ((avgAccuracy - 30) * (100 / 70));
+        const rawScore = 100 - ((avgAccuracy - 20) * (100 / 80));
         const score = Math.max(0, Math.min(100, Math.round(rawScore)));
+
+        const rank = calculateRank(score);
 
         const earlyCount = offsets.filter(o => o < -30).length;
         const lateCount = offsets.filter(o => o > 30).length;
         const perfectCount = offsets.filter(o => Math.abs(o) <= 30).length;
+
+        // Set Local State for UI
+        setLastSessionStats({
+            score,
+            rank,
+            accuracy: avgAccuracy,
+            stdDev,
+            hitCount: offsets.length
+        });
 
         try {
             await db.sessions.add({
@@ -70,7 +97,9 @@ export const useSessionManager = ({ isPlaying, bpm, patternId, latestOffsetMs, f
                 bpm,
                 durationSeconds,
                 score,
+                rank,
                 accuracy: avgAccuracy,
+                stdDev,
                 noteCount: offsets.length,
                 stats: {
                     earlyCount,
@@ -78,13 +107,15 @@ export const useSessionManager = ({ isPlaying, bpm, patternId, latestOffsetMs, f
                     perfectCount
                 }
             });
-            console.log('Session saved!');
+            console.log('Session saved!', { score, rank, stdDev });
         } catch (e) {
             console.error('Failed to save session', e);
         }
     };
 
     return {
-        rectordedCount: offsets.length
+        rectordedCount: offsets.length,
+        lastSessionStats
     };
 };
+

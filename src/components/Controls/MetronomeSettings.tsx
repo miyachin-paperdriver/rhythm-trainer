@@ -73,10 +73,10 @@ export const MetronomeSettings: React.FC<MetronomeSettingsProps> = ({
 
                     {/* Latency Calibration */}
                     <div>
-                        <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.8rem', color: 'var(--color-text-dim)' }}>Latency Calibration (ms)</label>
+                        <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.85rem', color: 'var(--color-text-dim)' }}>Latency Calibration (ms)</label>
                         <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-end' }}>
                             <div style={{ flex: 1 }}>
-                                <label style={{ fontSize: '0.7rem', color: 'var(--color-text-dim)' }}>Audio Latency</label>
+                                <label style={{ fontSize: '0.85rem', color: 'var(--color-text-dim)' }}>Audio Latency</label>
                                 <input
                                     type="number"
                                     value={audioLatency}
@@ -116,7 +116,7 @@ export const MetronomeSettings: React.FC<MetronomeSettingsProps> = ({
                     {/* Microphone Settings */}
                     <div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                            <label style={{ fontSize: '0.8rem', color: 'var(--color-text-dim)' }}>Microphone Settings</label>
+                            <label style={{ fontSize: '0.85rem', color: 'var(--color-text-dim)' }}>Microphone Settings</label>
                             <button
                                 onClick={onRunMicCalibration}
                                 disabled={isMicCalibrating}
@@ -137,7 +137,7 @@ export const MetronomeSettings: React.FC<MetronomeSettingsProps> = ({
                         </div>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', padding: '0 4px' }}>
                             <div>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: 'var(--color-text-dim)', marginBottom: '4px' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: 'var(--color-text-dim)', marginBottom: '4px' }}>
                                     <span>Gain</span>
                                     <span>{micGain.toFixed(1)}x</span>
                                 </div>
@@ -150,7 +150,7 @@ export const MetronomeSettings: React.FC<MetronomeSettingsProps> = ({
                                 />
                             </div>
                             <div>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: 'var(--color-text-dim)', marginBottom: '4px' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: 'var(--color-text-dim)', marginBottom: '4px' }}>
                                     <span>Sensitivity (Threshold: {micThreshold.toFixed(2)})</span>
                                 </div>
                                 <input
@@ -160,7 +160,7 @@ export const MetronomeSettings: React.FC<MetronomeSettingsProps> = ({
                                     onChange={e => onMicThresholdChange(parseFloat(e.target.value))}
                                     style={{ width: '100%', boxSizing: 'border-box', accentColor: 'var(--color-primary)', cursor: 'pointer' }}
                                 />
-                                <div style={{ fontSize: '0.65rem', color: '#888', marginTop: '2px' }}>
+                                <div style={{ fontSize: '0.85rem', color: '#888', marginTop: '2px' }}>
                                     Lower is more sensitive. Increase if too noisy.
                                 </div>
                             </div>
@@ -169,7 +169,7 @@ export const MetronomeSettings: React.FC<MetronomeSettingsProps> = ({
 
                     {/* Theme */}
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <label style={{ fontSize: '0.8rem', color: 'var(--color-text-dim)' }}>Theme</label>
+                        <label style={{ fontSize: '0.85rem', color: 'var(--color-text-dim)' }}>Theme</label>
                         <button onClick={toggleTheme} style={{
                             background: 'var(--color-surface)',
                             border: '1px solid var(--color-border)',

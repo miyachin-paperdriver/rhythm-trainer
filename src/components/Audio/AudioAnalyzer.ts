@@ -32,7 +32,10 @@ export class AudioAnalyzer {
                     audio: {
                         echoCancellation: false,
                         noiseSuppression: false,
-                        autoGainControl: false
+                        autoGainControl: false,
+                        // Try to hint for low latency/raw audio
+                        latency: 0,
+                        channelCount: 1
                     },
                     video: false
                 });

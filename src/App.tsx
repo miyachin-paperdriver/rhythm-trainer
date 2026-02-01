@@ -1,7 +1,13 @@
 import { Metronome } from './components/Audio/Metronome'
+import { OnsetTestPage } from './components/Test/OnsetTestPage'
 
 function App() {
+  // Simple "router" for testing purposes
+  const isTest = new URLSearchParams(window.location.search).get('test') === 'onset';
 
+  if (isTest) {
+    return <OnsetTestPage />;
+  }
 
   return (
     <div className="app-container">

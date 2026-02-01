@@ -17,7 +17,7 @@ export const useAudioAnalysis = ({ audioContext }: UseAudioAnalysisProps) => {
 
             analyzerRef.current.onOnset = (time) => {
                 console.log('Onset detected at', time);
-                setOnsets(prev => [...prev.slice(-10), time]); // Keep last 10
+                setOnsets(prev => [...prev, time]); // Keep all onsets
             };
         }
     }, [audioContext]);

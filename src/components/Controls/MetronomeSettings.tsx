@@ -7,6 +7,14 @@ interface MetronomeSettingsProps {
     onThemeChange: (theme: 'light' | 'dark') => void;
     isExpanded: boolean;
     onToggleExpand: () => void;
+
+    // Latency Calibration
+    audioLatency: number;
+    onAudioLatencyChange: (ms: number) => void;
+
+    // Auto Calibration
+    onRunAutoCalibration: () => void;
+    isCalibrating: boolean;
 }
 
 export const MetronomeSettings: React.FC<MetronomeSettingsProps> = ({
@@ -14,7 +22,11 @@ export const MetronomeSettings: React.FC<MetronomeSettingsProps> = ({
     onGapClickChange,
     onThemeChange,
     isExpanded,
-    onToggleExpand
+    onToggleExpand,
+    audioLatency,
+    onAudioLatencyChange,
+    onRunAutoCalibration,
+    isCalibrating
 }) => {
     const [subdivision, setSub] = useState<Subdivision>(1);
     const [gapEnabled, setGapEnabled] = useState(false);
@@ -128,6 +140,48 @@ export const MetronomeSettings: React.FC<MetronomeSettingsProps> = ({
                                 />
                             </div>
                         )}
+                    </div>
+
+                    {/* Latency Calibration */}
+                    <div>
+                        <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.8rem', color: 'var(--color-text-dim)' }}>Latency Calibration (ms)</label>
+                        <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-end' }}>
+                            <div style={{ flex: 1 }}>
+                                <label style={{ fontSize: '0.7rem', color: 'var(--color-text-dim)' }}>Audio Latency</label>
+                                <input
+                                    type="number"
+                                    value={audioLatency}
+                                    onChange={e => onAudioLatencyChange(Number(e.target.value))}
+                                    style={{
+                                        width: '100%',
+                                        padding: '8px',
+                                        borderRadius: 'var(--radius-md)',
+                                        border: '1px solid var(--color-border)',
+                                        background: 'var(--color-surface)',
+                                        color: 'var(--color-text)'
+                                    }}
+                                />
+                            </div>
+                            <div style={{ flex: 1 }}>
+                                <button
+                                    onClick={onRunAutoCalibration}
+                                    disabled={isCalibrating}
+                                    style={{
+                                        width: '100%',
+                                        padding: '8px',
+                                        borderRadius: 'var(--radius-md)',
+                                        border: 'none',
+                                        background: isCalibrating ? 'var(--color-surface-hover)' : 'var(--color-primary)',
+                                        color: isCalibrating ? 'var(--color-text-dim)' : '#fff',
+                                        fontWeight: 'bold',
+                                        cursor: isCalibrating ? 'wait' : 'pointer'
+                                    }}
+                                >
+                                    {isCalibrating ? 'Running...' : 'Auto Check'}
+                                </button>
+                            </div>
+                        </div>
+                        {isCalibrating && <div style={{ fontSize: '0.7rem', color: 'var(--color-accent)', marginTop: '4px' }}>Outputting click... Please wait.</div>}
                     </div>
 
                     {/* Theme */}

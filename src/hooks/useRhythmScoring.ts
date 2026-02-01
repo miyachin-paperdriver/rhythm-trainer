@@ -4,25 +4,45 @@ interface UseRhythmScoringProps {
     onsets: number[];       // timestamps of detected hits
     lastBeatTime: number;   // timestamp of the last metronome click
     bpm: number;
+    audioLatency?: number;  // New: Loopback latency (Output + Input)
 }
 
 export type Feedback = 'Perfect' | 'Good' | 'Early' | 'Late' | 'Miss' | null;
 
-export const useRhythmScoring = ({ onsets, lastBeatTime, bpm }: UseRhythmScoringProps) => {
+export const useRhythmScoring = ({ onsets, lastBeatTime, bpm, audioLatency = 0 }: UseRhythmScoringProps) => {
     const [feedback, setFeedback] = useState<Feedback>(null);
     const [offsetMs, setOffsetMs] = useState<number>(0);
+
+    // Convert latency from ms to seconds
+    const latencySec = audioLatency / 1000;
 
     useEffect(() => {
         if (onsets.length === 0) return;
 
-        const lastOnset = onsets[onsets.length - 1];
+        const lastOnset = onsets[onsets.length - 1]; // Raw onset time
+        // Adjusted onset time (When the user actually hit)
+        // If there is system latency L, the mic detects it L seconds LATER than it happened.
+        // So actualTime = detectedTime - latency.
+        // Wait, "audioLatency" usually means roundtrip?
+        // If we hear the metronome late, we hit late.
+        // If the mic is slow, we detect late.
+        // So both add up.
+        // We want to correct the "measured error".
+        // Measured Error = DetectedTime - MetronomeTime
+        // Real Error = (DetectedTime - InputLatency) - (MetronomeTime + OutputLatency)
+        //            = DetectedTime - MetronomeTime - (InputLatency + OutputLatency)
+        //            = rawOffset - totalLatency.
+        // So yes, subtract total latency.
+
+        const adjustedOnset = lastOnset - latencySec;
+
         const beatInterval = 60 / bpm;
 
         // Check which beat this onset is closest to: the last one or the next one?
         // We only have lastBeatTime. Next beat is lastBeatTime + beatInterval.
 
-        const diffToLast = lastOnset - lastBeatTime;
-        const diffToNext = (lastBeatTime + beatInterval) - lastOnset;
+        const diffToLast = adjustedOnset - lastBeatTime;
+        const diffToNext = (lastBeatTime + beatInterval) - adjustedOnset;
 
         // We consider the closest beat
         let closestDiff = 0;
@@ -54,7 +74,7 @@ export const useRhythmScoring = ({ onsets, lastBeatTime, bpm }: UseRhythmScoring
         const timer = setTimeout(() => setFeedback(null), 500);
         return () => clearTimeout(timer);
 
-    }, [onsets, lastBeatTime, bpm]);
+    }, [onsets, lastBeatTime, bpm, latencySec]);
 
     return { feedback, offsetMs };
 };

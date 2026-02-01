@@ -10,6 +10,7 @@ import { WaveformVisualizer } from '../Audio/WaveformVisualizer';
 import { HistoryView } from '../Analysis/HistoryView';
 import { TimingGauge } from '../Visualizer/TimingGauge';
 import { PATTERNS } from '../../utils/patterns';
+
 export const Metronome: React.FC = () => {
     // ---- State ----
     const [activeTab, setActiveTab] = useState<'training' | 'history'>('training');
@@ -18,16 +19,191 @@ export const Metronome: React.FC = () => {
     const [disableRecording, setDisableRecording] = useState(false);
     const [settingsExpanded, setSettingsExpanded] = useState(false);
 
+    // Latency State
+    const [audioLatency, setAudioLatency] = useState(() => Number(localStorage.getItem('audioLatency') || 0));
+    // Auto Calibration State
+    const [isCalibrating, setIsCalibrating] = useState(false);
+
+    // Beat History for Visualizer
+    const [beatHistory, setBeatHistory] = useState<number[]>([]);
+
+    useEffect(() => {
+        localStorage.setItem('audioLatency', audioLatency.toString());
+    }, [audioLatency]);
+
     // ---- Hooks ----
     const {
         bpm, isPlaying, start, stop, changeBpm,
         currentStep, lastBeatTime, isCountIn,
         setSubdivision, setGapClick,
-        audioContext
+        audioContext,
+        initializeAudio
     } = useMetronome();
 
     const { isMicReady, startAnalysis, stopAnalysis, clearOnsets, onsets, mediaStream } = useAudioAnalysis({ audioContext });
-    const { feedback, offsetMs } = useRhythmScoring({ onsets, lastBeatTime, bpm });
+
+    // NEW STRATEGY for Calibration:
+    const [calibrationState, setCalibrationState] = useState<{
+        active: boolean,
+        startTime: number,
+        samples: number[],
+        count: number,
+        status: string // 'starting' | 'waiting_mic' | 'warmup' | 'listening' | 'finished'
+    }>({ active: false, startTime: 0, samples: [], count: 0, status: 'starting' });
+
+    const calibrationTimeoutRef = React.useRef<any>(null);
+
+    const runCalibration = async () => {
+        if (isPlaying) stop();
+
+        // Ensure Audio Context is ready
+        if (!audioContext) {
+            initializeAudio();
+            // Do not call startAnalysis yet, wait for effect
+        } else if (audioContext.state === 'suspended') {
+            try {
+                await audioContext.resume();
+                console.log('[AutoCheck] AudioContext resumed');
+            } catch (e) { console.error('[AutoCheck] Resume failed', e); }
+        }
+
+        setCalibrationState({ active: true, startTime: 0, samples: [], count: 0, status: 'waiting_mic' });
+        setIsCalibrating(true);
+        console.log('[AutoCheck] Started process...');
+    };
+
+    const abortCalibration = () => {
+        console.log('[AutoCheck] Aborted/Timeout');
+        setCalibrationState({ active: false, startTime: 0, samples: [], count: 0, status: 'starting' });
+        setIsCalibrating(false);
+        stopAnalysis();
+        if (calibrationTimeoutRef.current) clearTimeout(calibrationTimeoutRef.current);
+    };
+
+    // Calibration Loop Effect (Scheduling Click)
+    useEffect(() => {
+        if (!calibrationState.active) {
+            if (calibrationTimeoutRef.current) clearTimeout(calibrationTimeoutRef.current);
+            return;
+        }
+
+        // Step 0: Ensure Context & Mic
+        if (calibrationState.status === 'waiting_mic') {
+            if (!audioContext) {
+                // Context still loading?
+                console.log('[AutoCheck] Waiting for AudioContext...');
+                return;
+            }
+
+            // Attempt to start analysis if not ready
+            if (!isMicReady) {
+                console.log('[AutoCheck] Requesting Mic...');
+                // We call this every render if not ready, which is fine since startAnalysis is guarded
+                startAnalysis();
+                return;
+            }
+
+            // If ready, proceed to warmup
+            console.log('[AutoCheck] Mic ready. Warming up...');
+            setCalibrationState(prev => ({ ...prev, status: 'warmup' }));
+
+            if (calibrationTimeoutRef.current) clearTimeout(calibrationTimeoutRef.current);
+            calibrationTimeoutRef.current = setTimeout(() => {
+                console.log('[AutoCheck] Warmup complete. Starting clicks.');
+                setCalibrationState(prev => ({ ...prev, status: 'starting' }));
+            }, 1000); // 1.0s warmup
+            return;
+        }
+
+        // Step 2: Warmup (waiting for timeout)
+        if (calibrationState.status === 'warmup') return;
+
+        // Step 3: Starting clicks
+        if (!audioContext) return;
+
+        // If we need to play a click (startTime is 0)
+        if (calibrationState.startTime === 0) {
+            const now = audioContext.currentTime;
+
+            // Wait a bit before clicking (stability)
+            const scheduleTime = now + 0.5;
+
+            // Generate Click
+            const osc = audioContext.createOscillator();
+            const gain = audioContext.createGain();
+            osc.connect(gain);
+            gain.connect(audioContext.destination);
+
+            osc.frequency.setValueAtTime(800, scheduleTime);
+            osc.frequency.exponentialRampToValueAtTime(0.01, scheduleTime + 0.1);
+            gain.gain.setValueAtTime(0.8, scheduleTime); // Loud click
+            gain.gain.exponentialRampToValueAtTime(0.01, scheduleTime + 0.1);
+
+            osc.start(scheduleTime);
+            osc.stop(scheduleTime + 0.1);
+
+            console.log('[AutoCheck] Click scheduled at', scheduleTime, 'Current:', now);
+            setCalibrationState(prev => ({ ...prev, startTime: scheduleTime, status: 'listening' }));
+
+            // Set timeout for this specific click
+            if (calibrationTimeoutRef.current) clearTimeout(calibrationTimeoutRef.current);
+            calibrationTimeoutRef.current = setTimeout(() => {
+                console.warn('[AutoCheck] Timeout waiting for onset');
+                abortCalibration();
+                alert("Calibration failed: Microphone didn't detect the click. Please increase volume or use external speakers.");
+            }, 3000); // 3s timeout
+        }
+
+    }, [calibrationState, audioContext, isMicReady, startAnalysis]);
+
+    // Capture Onset during Calibration
+    useEffect(() => {
+        if (!calibrationState.active || calibrationState.startTime === 0) return;
+
+        // Check if we have a new onset that matches our start time
+        if (onsets.length > 0) {
+            const lastOnset = onsets[onsets.length - 1];
+
+            // If the onset is AFTER our click
+            if (lastOnset > calibrationState.startTime) {
+                const latency = (lastOnset - calibrationState.startTime) * 1000; // ms
+                console.log('[AutoCheck] Detection:', latency, 'ms');
+
+                // Clear timeout since we found it
+                if (calibrationTimeoutRef.current) clearTimeout(calibrationTimeoutRef.current);
+
+                // Sanity check
+                if (latency < 1000) {
+                    const newSamples = [...calibrationState.samples, latency];
+
+                    if (newSamples.length >= 5) {
+                        // Done
+                        const avg = newSamples.reduce((a, b) => a + b, 0) / newSamples.length;
+                        console.log('[AutoCheck] Complete. Avg:', avg);
+                        setAudioLatency(Math.round(avg));
+                        setCalibrationState({ active: false, startTime: 0, samples: [], count: 0, status: 'finished' });
+                        setIsCalibrating(false);
+                        stopAnalysis();
+                    } else {
+                        // Next iteration
+                        console.log('[AutoCheck] Next iteration');
+                        setCalibrationState(prev => ({
+                            ...prev,
+                            samples: newSamples,
+                            startTime: 0, // Reset scan trigger
+                            count: prev.count + 1,
+                            status: 'starting'
+                        }));
+                    }
+                } else {
+                    console.warn('[AutoCheck] high latency ignored:', latency);
+                }
+            }
+        }
+    }, [onsets, calibrationState]);
+
+
+    const { feedback, offsetMs } = useRhythmScoring({ onsets, lastBeatTime, bpm, audioLatency });
     const { startRecording, stopRecording, clearRecording, audioBlob, startTime, duration } = useAudioRecorder();
 
     // ---- Logic ----
@@ -40,6 +216,12 @@ export const Metronome: React.FC = () => {
     });
 
     const toggle = () => {
+        // If Calibrating, toggle acts as Cancel
+        if (isCalibrating) {
+            abortCalibration();
+            return;
+        }
+
         if (isPlaying) {
             stop();
             stopRecording();
@@ -48,27 +230,24 @@ export const Metronome: React.FC = () => {
             // Clear previous session data immediately on start
             clearRecording();
             clearOnsets();
-
+            setBeatHistory([]); // Clear history
             start();
-            // Mic logic moved to useEffect to respect count-in
         }
     };
+
+    // Capture beats for history
+    useEffect(() => {
+        if (isPlaying && !disableRecording && !isCountIn && lastBeatTime > 0) {
+            setBeatHistory(prev => [...prev, lastBeatTime]);
+        }
+    }, [lastBeatTime, isPlaying, disableRecording, isCountIn]);
+
 
     // Auto-record & Analysis when playing + mic ready + NOT count-in
     useEffect(() => {
         if (isPlaying && !disableRecording) {
             if (isCountIn) {
                 // During count-in: Stop/Don't start mic
-                // (Wait, if we stopAnalysis, isMicReady might go false. 
-                // We just want to START it when count-in ends.
-                // But we need to initialize it? 
-                // Let's just say: Start Analysis ANYWAY to warm up? 
-                // User said "Mic off" during count-in.
-                // So we startAnalysis BUT don't record?
-                // Or don't startAnalysis at all?
-
-                // If we don't startAnalysis, `isMicReady` is false.
-                // When count-in ends, we act.
             } else {
                 // Count-in finished or not needed.
                 if (!isMicReady) {
@@ -77,12 +256,6 @@ export const Metronome: React.FC = () => {
 
                 // Also start recording if stream ready
                 if (isMicReady && mediaStream) {
-                    // only start if not already recording? useAudioRecorder checks?
-                    // No check in hook exposed?
-                    // Assuming hook handles re-calls gracefully or we check externally?
-                    // Actually `startRecording` usually initializes.
-                    // Let's add a check logic or depend on hook?
-                    // The hook creates a new Recorder.
                     startRecording(mediaStream, audioContext?.currentTime || 0);
                 }
             }
@@ -162,6 +335,44 @@ export const Metronome: React.FC = () => {
                                 whiteSpace: 'nowrap'
                             }}>
                                 COUNT IN
+                            </div>
+                        )}
+                        {isCalibrating && (
+                            <div style={{
+                                position: 'absolute',
+                                top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
+                                background: 'rgba(0,0,0,0.8)',
+                                color: 'var(--color-accent)',
+                                padding: '1rem',
+                                borderRadius: '1rem',
+                                fontWeight: 'bold',
+                                fontSize: '1rem',
+                                zIndex: 100,
+                                pointerEvents: 'auto',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                alignItems: 'center',
+                                gap: '0.5rem',
+                                backdropFilter: 'blur(4px)'
+                            }}>
+                                <div>Calibrating... {calibrationState.count + 1}/5</div>
+                                <div style={{ fontSize: '0.8rem', opacity: 0.8 }}>
+                                    {calibrationState.status === 'starting' || calibrationState.status === 'listening' ? 'Listening...' : (calibrationState.status === 'warmup' ? 'Warming up...' : 'Waiting for Mic...')}
+                                </div>
+                                <button
+                                    onClick={abortCalibration}
+                                    style={{
+                                        fontSize: '0.8rem',
+                                        padding: '0.3rem 0.6rem',
+                                        background: '#333',
+                                        border: '1px solid #666',
+                                        borderRadius: '4px',
+                                        color: '#fff',
+                                        cursor: 'pointer'
+                                    }}
+                                >
+                                    Cancel
+                                </button>
                             </div>
                         )}
 
@@ -267,8 +478,6 @@ export const Metronome: React.FC = () => {
                         </div>
                     </div>
 
-
-
                     {/* Review Waveform */}
                     {!isPlaying && audioBlob && (
                         <div style={{ width: '100%', overflow: 'hidden', borderRadius: 'var(--radius-md)' }}>
@@ -278,6 +487,8 @@ export const Metronome: React.FC = () => {
                                 startTime={startTime}
                                 duration={duration}
                                 audioContext={audioContext}
+                                beatHistory={beatHistory}
+                                audioLatency={audioLatency}
                             />
                         </div>
                     )}
@@ -289,6 +500,10 @@ export const Metronome: React.FC = () => {
                         onThemeChange={handleThemeChange}
                         isExpanded={settingsExpanded}
                         onToggleExpand={() => setSettingsExpanded(!settingsExpanded)}
+                        audioLatency={audioLatency}
+                        onAudioLatencyChange={setAudioLatency}
+                        onRunAutoCalibration={runCalibration}
+                        isCalibrating={calibrationState.active}
                     />
                 </div>
             )}

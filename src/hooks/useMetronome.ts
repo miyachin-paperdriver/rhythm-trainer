@@ -73,6 +73,11 @@ export const useMetronome = () => {
         engineRef.current?.setGapClick(enabled, play, mute);
     }, []);
 
+    const initializeAudio = useCallback(() => {
+        engineRef.current?.init();
+        setAudioContext(engineRef.current?.audioContext || null);
+    }, []);
+
     return {
         bpm,
         isPlaying,
@@ -86,6 +91,7 @@ export const useMetronome = () => {
         lastBeatTime,
         isMuted,
         isCountIn,
-        audioContext
+        audioContext,
+        initializeAudio
     };
 };

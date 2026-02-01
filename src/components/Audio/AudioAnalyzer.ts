@@ -21,11 +21,22 @@ export class AudioAnalyzer {
         this.audioContext = audioContext;
     }
 
-    public async start() {
+    public async start(stream?: MediaStream) {
         if (this.isRunning) return;
 
         try {
-            this.mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+            if (stream) {
+                this.mediaStream = stream;
+            } else {
+                this.mediaStream = await navigator.mediaDevices.getUserMedia({
+                    audio: {
+                        echoCancellation: false,
+                        noiseSuppression: false,
+                        autoGainControl: false
+                    },
+                    video: false
+                });
+            }
 
             this.source = this.audioContext.createMediaStreamSource(this.mediaStream);
             this.analyser = this.audioContext.createAnalyser();
@@ -63,22 +74,45 @@ export class AudioAnalyzer {
     private analyzeLoop() {
         if (!this.isRunning || !this.analyser || !this.inputBuffer) return;
 
-        this.analyser.getFloatTimeDomainData(this.inputBuffer as any);
+        this.analyser.getFloatTimeDomainData(this.inputBuffer);
 
-        // Simple energy-based onset detection
-        // Calculate RMS (Root Mean Square)
+        // Find peak amplitude and its index
+        let peakAmplitude = 0;
+        let peakIndex = 0;
         let sum = 0;
+
         for (let i = 0; i < this.inputBuffer.length; i++) {
-            sum += this.inputBuffer[i] * this.inputBuffer[i];
+            const abs = Math.abs(this.inputBuffer[i]);
+            if (abs > peakAmplitude) {
+                peakAmplitude = abs;
+                peakIndex = i;
+            }
+            sum += abs * abs;
         }
+
         const rms = Math.sqrt(sum / this.inputBuffer.length);
 
-        if (rms > this.threshold) {
+        // Use peak amplitude for threshold check as it's more sensitive for sharp clicks
+        // But keep RMS for general noise gate if needed. 
+        // For now, let's Stick to RMS or Peak? 
+        // The user complained about double detections.
+        // Let's use a hybrid: Threshold check.
+
+        if (peakAmplitude > this.threshold) {
             const now = this.audioContext.currentTime;
-            if (now - this.lastOnset > this.minInterOnsetInterval) {
-                this.lastOnset = now;
+
+            // Calculate precise time:
+            // The buffer represents the *past* window of audio.
+            // The last sample (index 2047) is "now".
+            // The sample at peakIndex is (2048 - peakIndex) samples ago.
+            const samplesAgo = this.inputBuffer.length - peakIndex;
+            const latencyInSeconds = samplesAgo / this.audioContext.sampleRate;
+            const onsetTime = now - latencyInSeconds;
+
+            if (onsetTime - this.lastOnset > this.minInterOnsetInterval) {
+                this.lastOnset = onsetTime;
                 if (this.onOnset) {
-                    this.onOnset(now);
+                    this.onOnset(onsetTime);
                 }
             }
         }

@@ -9,6 +9,7 @@ interface UseAudioAnalysisProps {
 
 export const useAudioAnalysis = ({ audioContext, gain = 5.0, threshold = 0.1 }: UseAudioAnalysisProps) => {
     const analyzerRef = useRef<AudioAnalyzer | null>(null);
+    const [analyzerInstance, setAnalyzerInstance] = useState<AudioAnalyzer | null>(null);
     const [isMicReady, setIsMicReady] = useState(false);
     const [onsets, setOnsets] = useState<number[]>([]);
     const [error, setError] = useState<string | null>(null);
@@ -16,6 +17,7 @@ export const useAudioAnalysis = ({ audioContext, gain = 5.0, threshold = 0.1 }: 
     useEffect(() => {
         if (audioContext && !analyzerRef.current) {
             analyzerRef.current = new AudioAnalyzer(audioContext);
+            setAnalyzerInstance(analyzerRef.current);
             // safe defaults or sync with props
             analyzerRef.current.setGain(gain);
             analyzerRef.current.setThreshold(threshold);
@@ -74,6 +76,6 @@ export const useAudioAnalysis = ({ audioContext, gain = 5.0, threshold = 0.1 }: 
         onsets,
         error,
         mediaStream: analyzerRef.current?.mediaStream || null,
-        analyzer: analyzerRef.current // Expose instance for direct level access
+        analyzer: analyzerInstance // Expose instance for direct level access
     };
 };

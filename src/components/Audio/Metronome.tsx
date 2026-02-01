@@ -92,24 +92,48 @@ export const Metronome: React.FC = () => {
 
     const runMicAutoCalibration = async () => {
         setIsCalibrating(true);
-        if (!isMicReady) {
-            await startAnalysis();
-        }
 
+        // 1. Initial Start Trigger
         setMicCalibState({ active: true, step: 'noise', noisePeak: 0, signalPeaks: [], hitCount: 0, message: 'Starting... Please wait.' });
 
-        // Wait for Analyzer
+        // 2. Ensure Audio Context exists (resume/create)
+        if (!audioContext) {
+            console.log('[MicCalib] Init Audio Context...');
+            initializeAudio();
+            // Simple wait for state update propagation
+            await new Promise(r => setTimeout(r, 500));
+        }
+
+        // 3. Wait for Analyzer to be populated (via Effect)
         let retries = 0;
-        while (!micAnalyzerRef.current && retries < 30) {
-            await new Promise(r => setTimeout(r, 100)); // Wait up to 3s
+        // Wait up to 5s for Analyzer to be ready (50 * 100ms)
+        while (!micAnalyzerRef.current && retries < 50) {
+            await new Promise(r => setTimeout(r, 100));
             retries++;
         }
 
         if (!micAnalyzerRef.current) {
-            alert("Microphone not accessible. Please check permissions.");
+            // Fatal error
+            alert("Microphone initialization failed. Please try again.");
             setMicCalibState({ active: false, step: 'idle', noisePeak: 0, signalPeaks: [], hitCount: 0, message: '' });
             setIsCalibrating(false);
             return;
+        }
+
+        // 4. Start Analysis if not ready (User Gesture flow)
+        if (!isMicReady) {
+            console.log('[MicCalib] Starting analysis stream...');
+            try {
+                await startAnalysis();
+                // Grace period for stream to stabilize
+                await new Promise(r => setTimeout(r, 500));
+            } catch (e) {
+                console.error(e);
+                alert("Failed to access microphone. Please check permissions.");
+                setMicCalibState({ active: false, step: 'idle', noisePeak: 0, signalPeaks: [], hitCount: 0, message: '' });
+                setIsCalibrating(false);
+                return;
+            }
         }
 
         setMicCalibState(prev => ({ ...prev, message: 'Quietly wait... Measuring noise.' }));
@@ -128,7 +152,7 @@ export const Metronome: React.FC = () => {
         micCalibRef.current.timer = setTimeout(() => {
             if (micCalibRef.current.poll) clearInterval(micCalibRef.current.poll);
             micCalibRef.current.poll = null;
-            micCalibRef.current.timer = null;
+            micCalibRef.current.timer = null; // Clean timer
 
             const noise = micCalibRef.current.maxPeak;
 

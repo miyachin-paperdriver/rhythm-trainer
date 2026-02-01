@@ -36,7 +36,7 @@ export class AudioAnalyzer {
                         // Try to hint for low latency/raw audio
                         latency: 0,
                         channelCount: 1
-                    },
+                    } as any,
                     video: false
                 });
             }

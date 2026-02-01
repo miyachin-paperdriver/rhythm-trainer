@@ -8,20 +8,33 @@ interface UseSessionManagerProps {
     latestOffsetMs: number; // From useRhythmScoring
     feedback: string | null; // From useRhythmScoring
     onsetIndex: number; // From useRhythmScoring (Unique ID for hit)
+    hand?: 'L' | 'R'; // New: Hand used for this hit
 }
 
-
-export interface SessionStats {
+// Stats for a single group (Total, Left, or Right)
+export interface GroupStats {
     score: number;
     rank: string;
     accuracy: number;
     stdDev: number;
+    tendency: number;
     hitCount: number;
 }
 
-export const useSessionManager = ({ isPlaying, bpm, patternId, latestOffsetMs, feedback, onsetIndex }: UseSessionManagerProps) => {
-    const [offsets, setOffsets] = useState<number[]>([]);
-    const [lastSessionStats, setLastSessionStats] = useState<SessionStats | null>(null);
+export interface SessionResult {
+    total: GroupStats;
+    left?: GroupStats;
+    right?: GroupStats;
+}
+
+interface RecordedHit {
+    offset: number;
+    hand: 'L' | 'R';
+}
+
+export const useSessionManager = ({ isPlaying, bpm, patternId, latestOffsetMs, feedback, onsetIndex, hand = 'R' }: UseSessionManagerProps) => {
+    const [hits, setHits] = useState<RecordedHit[]>([]);
+    const [lastSessionStats, setLastSessionStats] = useState<SessionResult | null>(null);
 
     const isPlayingRef = useRef(false);
     const startTimeRef = useRef<number>(0);
@@ -31,9 +44,10 @@ export const useSessionManager = ({ isPlaying, bpm, patternId, latestOffsetMs, f
     useEffect(() => {
         if (isPlaying && !isPlayingRef.current) {
             // Started
-            setOffsets([]);
+            setHits([]);
             setLastSessionStats(null); // Clear previous stats on new start
             startTimeRef.current = Date.now();
+            lastProcessedIndexRef.current = -1; // Reset index tracker
         } else if (!isPlaying && isPlayingRef.current) {
             // Stopped
             saveSession();
@@ -49,8 +63,8 @@ export const useSessionManager = ({ isPlaying, bpm, patternId, latestOffsetMs, f
         if (onsetIndex <= lastProcessedIndexRef.current) return;
 
         lastProcessedIndexRef.current = onsetIndex;
-        setOffsets(prev => [...prev, latestOffsetMs]);
-    }, [latestOffsetMs, isPlaying, feedback, onsetIndex]);
+        setHits(prev => [...prev, { offset: latestOffsetMs, hand }]);
+    }, [latestOffsetMs, isPlaying, feedback, onsetIndex, hand]);
 
     const calculateRank = (score: number): string => {
         if (score >= 95) return 'S';
@@ -60,42 +74,66 @@ export const useSessionManager = ({ isPlaying, bpm, patternId, latestOffsetMs, f
         return 'D';
     };
 
-    const saveSession = async () => {
-        if (offsets.length === 0) return;
+    const calculateGroupStats = (offsets: number[]): GroupStats => {
+        if (offsets.length === 0) {
+            return { score: 0, rank: '-', accuracy: 0, stdDev: 0, tendency: 0, hitCount: 0 };
+        }
 
-        const durationSeconds = (Date.now() - startTimeRef.current) / 1000;
-
-        // Calculate stats
         const absOffsets = offsets.map(o => Math.abs(o));
         const avgAccuracy = absOffsets.reduce((a, b) => a + b, 0) / absOffsets.length;
 
-        // Standard Deviation
-        // avg signed offset to find variance from mean, OR variance from zero?
-        // Usually, consistency (stability) is StdDev of signed offsets.
+        // Tendency (Mean Signed Error)
         const meanSigned = offsets.reduce((a, b) => a + b, 0) / offsets.length;
+
+        // Standard Deviation
         const variance = offsets.reduce((a, b) => a + Math.pow(b - meanSigned, 2), 0) / offsets.length;
         const stdDev = Math.sqrt(variance);
 
         // Score calculation (0-100)
-        // < 20ms avg = 100 (Stricter!)
-        // > 100ms avg = 0
+        // < 20ms avg = 100
         const rawScore = 100 - ((avgAccuracy - 20) * (100 / 80));
         const score = Math.max(0, Math.min(100, Math.round(rawScore)));
 
-        const rank = calculateRank(score);
-
-        const earlyCount = offsets.filter(o => o < -30).length;
-        const lateCount = offsets.filter(o => o > 30).length;
-        const perfectCount = offsets.filter(o => Math.abs(o) <= 30).length;
-
-        // Set Local State for UI
-        setLastSessionStats({
+        return {
             score,
-            rank,
+            rank: calculateRank(score),
             accuracy: avgAccuracy,
             stdDev,
+            tendency: meanSigned,
             hitCount: offsets.length
-        });
+        };
+    };
+
+    const saveSession = async () => {
+        if (hits.length === 0) return;
+
+        const durationSeconds = (Date.now() - startTimeRef.current) / 1000;
+
+        // 1. Total Stats
+        const allOffsets = hits.map(h => h.offset);
+        const totalStats = calculateGroupStats(allOffsets);
+
+        // 2. Left Stats
+        const leftOffsets = hits.filter(h => h.hand === 'L').map(h => h.offset);
+        const leftStats = calculateGroupStats(leftOffsets);
+
+        // 3. Right Stats
+        const rightOffsets = hits.filter(h => h.hand === 'R').map(h => h.offset);
+        const rightStats = calculateGroupStats(rightOffsets);
+
+        const result: SessionResult = {
+            total: totalStats,
+            left: leftOffsets.length > 0 ? leftStats : undefined,
+            right: rightOffsets.length > 0 ? rightStats : undefined
+        };
+
+        // Set Local State for UI
+        setLastSessionStats(result);
+
+        // Additional Stats for DB (legacy + extra)
+        const earlyCount = allOffsets.filter(o => o < -30).length;
+        const lateCount = allOffsets.filter(o => o > 30).length;
+        const perfectCount = allOffsets.filter(o => Math.abs(o) <= 30).length;
 
         try {
             await db.sessions.add({
@@ -103,25 +141,28 @@ export const useSessionManager = ({ isPlaying, bpm, patternId, latestOffsetMs, f
                 patternId,
                 bpm,
                 durationSeconds,
-                score,
-                rank,
-                accuracy: avgAccuracy,
-                stdDev,
-                noteCount: offsets.length,
+                score: totalStats.score,
+                rank: totalStats.rank,
+                accuracy: totalStats.accuracy,
+                stdDev: totalStats.stdDev,
+                tendency: totalStats.tendency,
+                noteCount: totalStats.hitCount,
                 stats: {
                     earlyCount,
                     lateCount,
                     perfectCount
-                }
+                },
+                statsL: result.left,
+                statsR: result.right
             });
-            console.log('Session saved!', { score, rank, stdDev });
+            console.log('Session saved!', result);
         } catch (e) {
             console.error('Failed to save session', e);
         }
     };
 
     return {
-        rectordedCount: offsets.length,
+        rectordedCount: hits.length,
         lastSessionStats
     };
 };

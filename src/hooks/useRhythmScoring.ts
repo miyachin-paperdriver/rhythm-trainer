@@ -13,6 +13,7 @@ export const useRhythmScoring = ({ onsets, lastBeatTime, bpm, audioLatency = 0 }
     const [feedback, setFeedback] = useState<Feedback>(null);
     const [offsetMs, setOffsetMs] = useState<number>(0);
     const [onsetIndex, setOnsetIndex] = useState<number>(-1);
+    const [closestBeatType, setClosestBeatType] = useState<'last' | 'next' | null>(null);
     const processedOnsetsRef = useRef<number>(0);
 
     // Convert latency from ms to seconds
@@ -63,9 +64,11 @@ export const useRhythmScoring = ({ onsets, lastBeatTime, bpm, audioLatency = 0 }
         if (Math.abs(diffToLast) < Math.abs(diffToNext)) {
             // Closer to last beat
             closestDiff = diffToLast; // Positive implies Late (Onset > Beat)
+            setClosestBeatType('last');
         } else {
             // Closer to next beat
             closestDiff = -diffToNext; // Negative implies Early (Onset < NextBeat)
+            setClosestBeatType('next');
         }
 
         const ms = closestDiff * 1000;
@@ -85,10 +88,13 @@ export const useRhythmScoring = ({ onsets, lastBeatTime, bpm, audioLatency = 0 }
         }
 
         // Clear feedback after a short while
-        const timer = setTimeout(() => setFeedback(null), 500);
+        const timer = setTimeout(() => {
+            setFeedback(null);
+            setClosestBeatType(null); // Clear type too
+        }, 500);
         return () => clearTimeout(timer);
 
     }, [onsets, lastBeatTime, bpm, latencySec]);
 
-    return { feedback, offsetMs, onsetIndex };
+    return { feedback, offsetMs, onsetIndex, closestBeatType };
 };

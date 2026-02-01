@@ -600,9 +600,20 @@ export const Metronome: React.FC = () => {
     }, [onsets, calibrationState]);
 
 
-    const { feedback, offsetMs, onsetIndex } = useRhythmScoring({ onsets, lastBeatTime, bpm, audioLatency });
+    const { feedback, offsetMs, onsetIndex, closestBeatType } = useRhythmScoring({ onsets, lastBeatTime, bpm, audioLatency });
     const { startRecording, stopRecording, clearRecording, audioBlob, startTime, duration } = useAudioRecorder();
     const recordingStartedRef = React.useRef(false);
+
+    // Determine Hand
+    let currentHand: 'L' | 'R' = 'R';
+    if (selectedPattern) {
+        let targetStep = currentStep;
+        if (closestBeatType === 'next') targetStep += 1;
+        // Normalize
+        const len = selectedPattern.sequence.length;
+        const index = (targetStep % len + len) % len;
+        currentHand = selectedPattern.sequence[index];
+    }
 
     // ---- Logic ----
     const { lastSessionStats } = useSessionManager({
@@ -611,8 +622,12 @@ export const Metronome: React.FC = () => {
         patternId: selectedPatternId,
         latestOffsetMs: offsetMs,
         feedback,
-        onsetIndex
+        onsetIndex,
+        hand: currentHand
     });
+
+    // Session Summary Tab State
+    const [summaryTab, setSummaryTab] = useState<'total' | 'left' | 'right'>('total');
 
     // Wrappers for settings updates
     const handleSubdivisionChange = (sub: Subdivision) => {
@@ -645,6 +660,7 @@ export const Metronome: React.FC = () => {
             clearOnsets();
             setBeatHistory([]); // Clear history
             recordingStartedRef.current = false;
+            setSummaryTab('total'); // Reset tab
 
             if (!disableRecording) {
                 // 1. Ensure Audio Context exists (resume/create)
@@ -1024,76 +1040,152 @@ export const Metronome: React.FC = () => {
 
                     {/* Review Waveform */}
                     {/* Review Waveform & Session Report */}
-                    {!isPlaying && audioBlob && (
+                    {!isPlaying && (lastSessionStats || audioBlob) && (
                         <div style={{ width: '100%', overflow: 'hidden', borderRadius: 'var(--radius-md)', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
 
                             {/* Session Summary Panel */}
                             {lastSessionStats && (
                                 <div style={{
                                     display: 'flex',
-                                    justifyContent: 'space-between',
-                                    alignItems: 'center',
+                                    flexDirection: 'column',
                                     padding: '1rem',
                                     background: 'var(--color-surface)',
                                     borderRadius: 'var(--radius-md)',
                                     border: '1px solid var(--color-border)'
                                 }}>
-                                    {/* Left: Rank & Score */}
-                                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: '80px' }}>
-                                        <div style={{
-                                            fontSize: '3rem',
-                                            fontWeight: '900',
-                                            lineHeight: 1,
-                                            color: lastSessionStats.rank === 'S' ? '#faad14' :
-                                                lastSessionStats.rank === 'A' ? '#52c41a' :
-                                                    lastSessionStats.rank === 'B' ? '#1890ff' :
-                                                        lastSessionStats.rank === 'C' ? '#fa8c16' : '#ff4d4f',
-                                            textShadow: '0 2px 4px rgba(0,0,0,0.3)'
-                                        }}>
-                                            {lastSessionStats.rank}
-                                        </div>
-                                        <div style={{ fontSize: '1rem', fontWeight: 'bold', color: '#ccc' }}>
-                                            {lastSessionStats.score} <span style={{ fontSize: '0.7rem' }}>pts</span>
-                                        </div>
+                                    {/* Tabs for Analysis */}
+                                    <div style={{ display: 'flex', marginBottom: '1rem', background: 'var(--color-bg)', padding: '2px', borderRadius: 'var(--radius-sm)' }}>
+                                        {(['total', 'left', 'right'] as const).map(t => {
+                                            const label = t === 'total' ? 'TOTAL' : t === 'left' ? 'LEFT (L)' : 'RIGHT (R)';
+                                            const isActive = summaryTab === t;
+                                            const hasData = t === 'total' || (t === 'left' && lastSessionStats.left) || (t === 'right' && lastSessionStats.right);
+
+                                            if (!hasData) return null;
+
+                                            return (
+                                                <button
+                                                    key={t}
+                                                    onClick={() => setSummaryTab(t)}
+                                                    style={{
+                                                        flex: 1,
+                                                        padding: '0.4rem',
+                                                        fontSize: '0.8rem',
+                                                        fontWeight: 'bold',
+                                                        border: 'none',
+                                                        borderRadius: 'var(--radius-sm)',
+                                                        background: isActive ? 'var(--color-primary)' : 'transparent',
+                                                        color: isActive ? '#000' : 'var(--color-text-dim)',
+                                                        cursor: 'pointer'
+                                                    }}
+                                                >
+                                                    {label}
+                                                </button>
+                                            )
+                                        })}
                                     </div>
 
-                                    {/* Right: Metrics Bars */}
-                                    <div style={{ flex: 1, marginLeft: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                                        {/* Accuracy Bar */}
-                                        <div>
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', marginBottom: '2px', color: '#aaa' }}>
-                                                <span>TIMING ACCURACY</span>
-                                                <span>{Math.round(lastSessionStats.accuracy)}ms avg</span>
-                                            </div>
-                                            <div style={{ height: '6px', width: '100%', background: '#333', borderRadius: '3px', overflow: 'hidden' }}>
-                                                <div style={{
-                                                    height: '100%',
-                                                    width: `${Math.max(0, Math.min(100, 100 - (lastSessionStats.accuracy - 20) * (100 / 60)))}%`, // 20ms full, 80ms empty
-                                                    background: 'linear-gradient(90deg, #52c41a, #a0d911)'
-                                                }} />
-                                            </div>
-                                        </div>
+                                    {/* Selected Data Content */}
+                                    {(() => {
+                                        const data = summaryTab === 'total'
+                                            ? lastSessionStats.total
+                                            : summaryTab === 'left'
+                                                ? lastSessionStats.left
+                                                : lastSessionStats.right;
 
-                                        {/* Stability Bar */}
-                                        <div>
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', marginBottom: '2px', color: '#aaa' }}>
-                                                <span>STABILITY (SD)</span>
-                                                <span>{Math.round(lastSessionStats.stdDev)}ms</span>
-                                            </div>
-                                            <div style={{ height: '6px', width: '100%', background: '#333', borderRadius: '3px', overflow: 'hidden' }}>
-                                                <div style={{
-                                                    height: '100%',
-                                                    width: `${Math.max(0, Math.min(100, 100 - ((lastSessionStats.stdDev || 0) - 10) * (100 / 40)))}%`, // 10ms full, 50ms empty
-                                                    background: 'linear-gradient(90deg, #1890ff, #69c0ff)'
-                                                }} />
-                                            </div>
-                                        </div>
+                                        if (!data) return <div style={{ textAlign: 'center', padding: '1rem', color: '#666' }}>No Data</div>;
 
-                                        {/* Hit Count Label */}
-                                        <div style={{ textAlign: 'right', fontSize: '0.75rem', color: '#666', marginTop: '2px' }}>
-                                            Total Hits: {lastSessionStats.hitCount}
-                                        </div>
-                                    </div>
+                                        return (
+                                            <div style={{ display: 'flex', alignItems: 'center' }}>
+                                                {/* Left: Rank & Score */}
+                                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: '80px' }}>
+                                                    <div style={{
+                                                        fontSize: '3rem',
+                                                        fontWeight: '900',
+                                                        lineHeight: 1,
+                                                        color: data.rank === 'S' ? '#faad14' :
+                                                            data.rank === 'A' ? '#52c41a' :
+                                                                data.rank === 'B' ? '#1890ff' :
+                                                                    data.rank === 'C' ? '#fa8c16' : '#ff4d4f',
+                                                        textShadow: '0 2px 4px rgba(0,0,0,0.3)'
+                                                    }}>
+                                                        {data.rank}
+                                                    </div>
+                                                    <div style={{ fontSize: '1rem', fontWeight: 'bold', color: '#ccc' }}>
+                                                        {data.score} <span style={{ fontSize: '0.7rem' }}>pts</span>
+                                                    </div>
+                                                </div>
+
+                                                {/* Right: Metrics Bars */}
+                                                <div style={{ flex: 1, marginLeft: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                                    {/* Accuracy Bar */}
+                                                    <div>
+                                                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', marginBottom: '2px', color: '#aaa' }}>
+                                                            <span>TIMING ACCURACY</span>
+                                                            <span>{Math.round(data.accuracy)}ms avg</span>
+                                                        </div>
+                                                        <div style={{ height: '6px', width: '100%', background: '#333', borderRadius: '3px', overflow: 'hidden' }}>
+                                                            <div style={{
+                                                                height: '100%',
+                                                                width: `${Math.max(0, Math.min(100, 100 - (data.accuracy - 20) * (100 / 60)))}%`, // 20ms full, 80ms empty
+                                                                background: 'linear-gradient(90deg, #52c41a, #a0d911)'
+                                                            }} />
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Stability Bar */}
+                                                    <div>
+                                                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', marginBottom: '2px', color: '#aaa' }}>
+                                                            <span>STABILITY (SD)</span>
+                                                            <span>{Math.round(data.stdDev)}ms</span>
+                                                        </div>
+                                                        <div style={{ height: '6px', width: '100%', background: '#333', borderRadius: '3px', overflow: 'hidden' }}>
+                                                            <div style={{
+                                                                height: '100%',
+                                                                width: `${Math.max(0, Math.min(100, 100 - ((data.stdDev || 0) - 10) * (100 / 40)))}%`, // 10ms full, 50ms empty
+                                                                background: 'linear-gradient(90deg, #1890ff, #69c0ff)'
+                                                            }} />
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Tendency Bar (Bipolar) */}
+                                                    <div>
+                                                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', marginBottom: '2px', color: '#aaa' }}>
+                                                            <span>TENDENCY</span>
+                                                            <span style={{
+                                                                color: data.tendency < -5 ? '#fa8c16' : data.tendency > 5 ? '#ff4d4f' : '#52c41a'
+                                                            }}>
+                                                                {Math.abs(data.tendency) < 5 ? 'Just Right' :
+                                                                    data.tendency < 0 ? `Rush (${Math.round(data.tendency)}ms)` : `Drag (+${Math.round(data.tendency)}ms)`}
+                                                            </span>
+                                                        </div>
+                                                        <div style={{ height: '6px', width: '100%', background: '#333', borderRadius: '3px', position: 'relative' }}>
+                                                            {/* Center Marker */}
+                                                            <div style={{ position: 'absolute', left: '50%', top: 0, bottom: 0, width: '2px', background: '#555', transform: 'translateX(-50%)' }} />
+                                                            {/* Fill */}
+                                                            <div style={{
+                                                                position: 'absolute',
+                                                                top: 0, bottom: 0,
+                                                                left: data.tendency < 0 ? 'auto' : '50%',
+                                                                right: data.tendency < 0 ? '50%' : 'auto',
+                                                                // Scale: 50ms = full width (50%)
+                                                                width: `${Math.min(50, Math.abs(data.tendency) * (50 / 50))}%`,
+                                                                background: data.tendency < 0 ? '#fa8c16' : '#ff4d4f', // Orange for Rush, Red for Drag (or adjust colors?)
+                                                                borderTopLeftRadius: data.tendency < 0 ? '3px' : '0',
+                                                                borderBottomLeftRadius: data.tendency < 0 ? '3px' : '0',
+                                                                borderTopRightRadius: data.tendency > 0 ? '3px' : '0',
+                                                                borderBottomRightRadius: data.tendency > 0 ? '3px' : '0',
+                                                            }} />
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Hit Count Label */}
+                                                    <div style={{ textAlign: 'right', fontSize: '0.75rem', color: '#666', marginTop: '2px' }}>
+                                                        Hits: {data.hitCount}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        );
+                                    })()}
                                 </div>
                             )}
 

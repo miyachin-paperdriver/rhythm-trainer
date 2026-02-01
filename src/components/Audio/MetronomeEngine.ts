@@ -45,7 +45,8 @@ export class MetronomeEngine {
         this.unlockAudioContext();
 
         // Workaround for "fade-in" effect: wait a bit for hardware to fully unmute
-        await new Promise(r => setTimeout(r, 400));
+        // Increasing to 600ms to ensure first beat is audible
+        await new Promise(r => setTimeout(r, 600));
 
         this.isPlaying = true;
         this.beatNumber = 0;

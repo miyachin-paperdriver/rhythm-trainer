@@ -2,12 +2,13 @@ import React, { useEffect, useRef } from 'react';
 
 interface WaveformVisualizerProps {
     audioBlob: Blob | null;
-    onsets: number[]; // Absolute timestamps (audioContext.currentTime)
-    startTime: number; // Start time of recording (audioContext.currentTime)
-    duration: number; // Length of recording in seconds
+    onsets: number[]; // Absolute timestamps
+    startTime: number;
+    duration: number;
+    audioContext?: AudioContext | null;
 }
 
-export const WaveformVisualizer: React.FC<WaveformVisualizerProps> = ({ audioBlob, onsets, startTime, duration }) => {
+export const WaveformVisualizer: React.FC<WaveformVisualizerProps> = ({ audioBlob, onsets, startTime, duration, audioContext }) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const [audioBuffer, setAudioBuffer] = React.useState<AudioBuffer | null>(null);
 

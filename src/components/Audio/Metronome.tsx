@@ -279,6 +279,7 @@ export const Metronome: React.FC = () => {
                                 onsets={onsets}
                                 startTime={startTime}
                                 duration={duration}
+                                audioContext={audioContext}
                             />
                         </div>
                     )}

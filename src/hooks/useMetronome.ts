@@ -9,12 +9,13 @@ export const useMetronome = () => {
     const [currentStep, setCurrentStep] = useState(0);
     const [lastBeatTime, setLastBeatTime] = useState(0);
     const [isMuted, setIsMuted] = useState(false);
+    const [isCountIn, setIsCountIn] = useState(false);
 
     // Expose context via state
     const [audioContext, setAudioContext] = useState<AudioContext | null>(null);
 
     useEffect(() => {
-        engineRef.current = new MetronomeEngine((beat, time, step, muted) => {
+        engineRef.current = new MetronomeEngine((beat, time, step, muted, countIn) => {
             // Logic runs on main beats
             const ctx = engineRef.current?.audioContext;
             if (!ctx) return;
@@ -28,12 +29,14 @@ export const useMetronome = () => {
                     setCurrentStep(step);
                     setLastBeatTime(time);
                     setIsMuted(muted);
+                    setIsCountIn(countIn);
                 }, diff * 1000);
             } else {
                 setCurrentBeat(beat);
                 setCurrentStep(step);
                 setLastBeatTime(time);
                 setIsMuted(muted);
+                setIsCountIn(countIn);
             }
         });
         setAudioContext(engineRef.current?.audioContext || null);
@@ -82,6 +85,7 @@ export const useMetronome = () => {
         currentStep,
         lastBeatTime,
         isMuted,
+        isCountIn,
         audioContext
     };
 };

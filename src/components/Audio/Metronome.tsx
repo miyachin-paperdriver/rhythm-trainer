@@ -20,7 +20,7 @@ export const Metronome: React.FC = () => {
     // ---- Hooks ----
     const {
         bpm, isPlaying, start, stop, changeBpm,
-        currentStep, lastBeatTime,
+        currentStep, lastBeatTime, isMuted, isCountIn,
         setSubdivision, setGapClick,
         audioContext
     } = useMetronome();
@@ -45,19 +45,44 @@ export const Metronome: React.FC = () => {
             stopAnalysis(); // Always stop mic
         } else {
             start();
-            // Start Mic/Recording unless disabled
-            if (!disableRecording && !isMicReady) {
-                startAnalysis();
-            }
+            // Mic logic moved to useEffect to respect count-in
         }
     };
 
-    // Auto-record when playing + mic ready
+    // Auto-record & Analysis when playing + mic ready + NOT count-in
     useEffect(() => {
-        if (isPlaying && isMicReady && mediaStream && !disableRecording) {
-            startRecording(mediaStream, audioContext?.currentTime || 0);
+        if (isPlaying && !disableRecording) {
+            if (isCountIn) {
+                // During count-in: Stop/Don't start mic
+                // (Wait, if we stopAnalysis, isMicReady might go false. 
+                // We just want to START it when count-in ends.
+                // But we need to initialize it? 
+                // Let's just say: Start Analysis ANYWAY to warm up? 
+                // User said "Mic off" during count-in.
+                // So we startAnalysis BUT don't record?
+                // Or don't startAnalysis at all?
+
+                // If we don't startAnalysis, `isMicReady` is false.
+                // When count-in ends, we act.
+            } else {
+                // Count-in finished or not needed.
+                if (!isMicReady) {
+                    startAnalysis();
+                }
+
+                // Also start recording if stream ready
+                if (isMicReady && mediaStream) {
+                    // only start if not already recording? useAudioRecorder checks?
+                    // No check in hook exposed?
+                    // Assuming hook handles re-calls gracefully or we check externally?
+                    // Actually `startRecording` usually initializes.
+                    // Let's add a check logic or depend on hook?
+                    // The hook creates a new Recorder.
+                    startRecording(mediaStream, audioContext?.currentTime || 0);
+                }
+            }
         }
-    }, [isPlaying, isMicReady, mediaStream, disableRecording, audioContext]);
+    }, [isPlaying, isCountIn, isMicReady, mediaStream, disableRecording, audioContext, startAnalysis, startRecording]);
 
     // Theme Handler
     const handleThemeChange = (theme: 'light' | 'dark') => {

@@ -78,35 +78,39 @@ export const WaveformVisualizer: React.FC<WaveformVisualizerProps> = ({ audioBlo
     }, [audioBuffer, onsets, startTime, duration]);
 
     const [isPlaying, setIsPlaying] = React.useState(false);
-    const audioRef = useRef<HTMLAudioElement | null>(null);
+    const sourceRef = useRef<AudioBufferSourceNode | null>(null);
+    const playbackContextRef = useRef<AudioContext | null>(null);
 
     const togglePlayback = () => {
-        if (isPlaying && audioRef.current) {
-            audioRef.current.pause();
-            audioRef.current.currentTime = 0;
+        if (isPlaying) {
+            if (sourceRef.current) {
+                try {
+                    sourceRef.current.stop();
+                } catch (e) { /* ignore if already stopped */ }
+                sourceRef.current = null;
+            }
             setIsPlaying(false);
         } else {
-            if (!audioBlob) return;
+            if (!audioBuffer) return;
 
-            // If we have an existing audio element but it ended, reuse or recreate?
-            // Recreating is safer in case of blob URL issues or state drift
-            if (audioRef.current) {
-                audioRef.current.pause();
-            }
+            // Reuse existing context or create new one?
+            // Creating new one is safest for simple playback unless we want to route through main mixer
+            // But we already decoded the buffer using a temp context.
+            // Let's create a fresh context for playback to ensure clean state.
+            const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+            playbackContextRef.current = ctx;
 
-            const url = URL.createObjectURL(audioBlob);
-            const audio = new Audio(url);
+            const source = ctx.createBufferSource();
+            source.buffer = audioBuffer;
+            source.connect(ctx.destination);
 
-            audio.onended = () => {
+            source.onended = () => {
                 setIsPlaying(false);
+                ctx.close(); // Clean up
             };
 
-            audio.play().catch(e => {
-                console.error("Playback failed", e);
-                setIsPlaying(false);
-            });
-
-            audioRef.current = audio;
+            source.start(0);
+            sourceRef.current = source;
             setIsPlaying(true);
         }
     };

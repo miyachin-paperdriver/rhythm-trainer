@@ -21,9 +21,9 @@ export class MetronomeEngine {
     private MeasureNumber: number = 0;
     private stepNumber: number = 0; // Total steps (main beats)
 
-    private onTick: ((beat: number, time: number, step: number, isMuted: boolean) => void) | null = null;
+    private onTick: ((beat: number, time: number, step: number, isMuted: boolean, isCountIn: boolean) => void) | null = null;
 
-    constructor(onTick?: (beat: number, time: number, step: number, isMuted: boolean) => void) {
+    constructor(onTick?: (beat: number, time: number, step: number, isMuted: boolean, isCountIn: boolean) => void) {
         if (onTick) this.onTick = onTick;
     }
 
@@ -47,8 +47,8 @@ export class MetronomeEngine {
         this.isPlaying = true;
         this.beatNumber = 0;
         this.subBeatNumber = 0;
-        this.MeasureNumber = 0;
-        this.stepNumber = 0;
+        this.MeasureNumber = -1; // Start with 1 bar count-in
+        this.stepNumber = -4; // Assuming 4/4
         this.nextNoteTime = this.audioContext!.currentTime + 0.1;
         this.scheduler();
     }
@@ -80,7 +80,7 @@ export class MetronomeEngine {
         this.muteBars = mute;
     }
 
-    public setOnTick(callback: (beat: number, time: number, step: number, isMuted: boolean) => void) {
+    public setOnTick(callback: (beat: number, time: number, step: number, isMuted: boolean, isCountIn: boolean) => void) {
         this.onTick = callback;
     }
 
@@ -116,9 +116,11 @@ export class MetronomeEngine {
     private scheduleNote(beat: number, subBeat: number, time: number) {
         if (!this.audioContext) return;
 
-        // Gap Click Logic (Mute check)
+        const isCountIn = this.MeasureNumber < 0;
+
+        // Gap Click Logic (Mute check) - ONLY if not count-in
         let isMuted = false;
-        if (this.gapClickEnabled) {
+        if (!isCountIn && this.gapClickEnabled) {
             const cycle = this.playBars + this.muteBars;
             const pos = this.MeasureNumber % cycle;
             if (pos >= this.playBars) {
@@ -138,7 +140,7 @@ export class MetronomeEngine {
         // If I callback on subBeat, stepNumber doesn't increment.
 
         if (subBeat === 0) {
-            if (this.onTick) this.onTick(beat, time, this.stepNumber, isMuted);
+            if (this.onTick) this.onTick(beat, time, this.stepNumber, isMuted, isCountIn);
         }
 
         if (isMuted) return; // Don't play sound
@@ -149,12 +151,17 @@ export class MetronomeEngine {
         gainNode.connect(this.audioContext.destination);
 
         // Frequency
-        if (beat === 0 && subBeat === 0) {
-            osc.frequency.value = 880; // Downbeat
-        } else if (subBeat === 0) {
-            osc.frequency.value = 440; // Quarter note
+        if (isCountIn) {
+            // Distinct count-in sound (e.g. higher pitch tick for all beats)
+            osc.frequency.value = 1000;
         } else {
-            osc.frequency.value = 220; // Subdivision (High Hat like or lower click)
+            if (beat === 0 && subBeat === 0) {
+                osc.frequency.value = 880; // Downbeat
+            } else if (subBeat === 0) {
+                osc.frequency.value = 440; // Quarter note
+            } else {
+                osc.frequency.value = 220; // Subdivision
+            }
         }
 
         // Volume Adjustment for subdivisions

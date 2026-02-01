@@ -232,7 +232,7 @@ export const Metronome: React.FC = () => {
                 // But if bleed is HUGE (feedback loop), we might need to be careful?
                 // For now, simple max.
 
-                setMicCalibState(prev => ({
+                setMicCalibState(_ => ({
                     active: true,
                     step: 'signal',
                     noisePeak: noise,

@@ -188,23 +188,31 @@ export const Metronome: React.FC = () => {
             // ---- NEW Step 1.5: Measure Click Bleed ----
             setMicCalibState(prev => ({ ...prev, step: 'bleed', noisePeak: noise, message: 'Measuring Click Sound... Stay Quiet.' }));
 
-            // Generate Clicks
+            // Generate Clicks - MUST match MetronomeEngine sounds
+            // MetronomeEngine uses: 1000Hz (count-in), 880Hz (downbeat), 440Hz (quarter), 220Hz (sub)
+            // We play 4 clicks representing the loudest sounds user will hear:
+            // 1. 1000Hz (count-in), 2. 880Hz (accent/downbeat), 3. 440Hz (normal), 4. 880Hz (accent again)
             const ctx = audioContextRef.current;
             if (ctx) {
                 const now = ctx.currentTime;
-                // Play 4 clicks over 2 seconds
-                const times = [now + 0.5, now + 1.0, now + 1.5, now + 2.0];
-                times.forEach(t => {
+                const clickConfigs = [
+                    { time: now + 0.5, freq: 1000 }, // Count-in sound
+                    { time: now + 1.0, freq: 880 },  // Downbeat/Accent
+                    { time: now + 1.5, freq: 440 },  // Quarter note
+                    { time: now + 2.0, freq: 880 },  // Downbeat again
+                ];
+                clickConfigs.forEach(({ time, freq }) => {
                     const osc = ctx.createOscillator();
-                    const gain = ctx.createGain();
-                    osc.connect(gain);
-                    gain.connect(ctx.destination);
-                    osc.frequency.value = 1000; // High pitch to test basic bleed
-                    gain.gain.setValueAtTime(0, t);
-                    gain.gain.linearRampToValueAtTime(0.8, t + 0.01);
-                    gain.gain.linearRampToValueAtTime(0, t + 0.1);
-                    osc.start(t);
-                    osc.stop(t + 0.15);
+                    const gainNode = ctx.createGain();
+                    osc.connect(gainNode);
+                    gainNode.connect(ctx.destination);
+                    osc.frequency.value = freq;
+                    // Match MetronomeEngine envelope EXACTLY
+                    gainNode.gain.setValueAtTime(0, time);
+                    gainNode.gain.linearRampToValueAtTime(1.0, time + 0.001); // Full volume like engine
+                    gainNode.gain.exponentialRampToValueAtTime(0.001, time + 0.05);
+                    osc.start(time);
+                    osc.stop(time + 0.06);
                 });
             }
 

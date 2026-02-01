@@ -7,6 +7,7 @@ interface UseSessionManagerProps {
     patternId: string;
     latestOffsetMs: number; // From useRhythmScoring
     feedback: string | null; // From useRhythmScoring
+    onsetIndex: number; // From useRhythmScoring (Unique ID for hit)
 }
 
 
@@ -18,12 +19,13 @@ export interface SessionStats {
     hitCount: number;
 }
 
-export const useSessionManager = ({ isPlaying, bpm, patternId, latestOffsetMs, feedback }: UseSessionManagerProps) => {
+export const useSessionManager = ({ isPlaying, bpm, patternId, latestOffsetMs, feedback, onsetIndex }: UseSessionManagerProps) => {
     const [offsets, setOffsets] = useState<number[]>([]);
     const [lastSessionStats, setLastSessionStats] = useState<SessionStats | null>(null);
 
     const isPlayingRef = useRef(false);
     const startTimeRef = useRef<number>(0);
+    const lastProcessedIndexRef = useRef<number>(-1);
 
     // Detect Start/Stop
     useEffect(() => {
@@ -41,9 +43,14 @@ export const useSessionManager = ({ isPlaying, bpm, patternId, latestOffsetMs, f
 
     // Record data
     useEffect(() => {
-        if (!isPlaying || feedback === null) return;
+        if (!isPlaying || feedback === null || onsetIndex === -1) return;
+
+        // Deduplication: Only record if this onset hasn't been processed
+        if (onsetIndex <= lastProcessedIndexRef.current) return;
+
+        lastProcessedIndexRef.current = onsetIndex;
         setOffsets(prev => [...prev, latestOffsetMs]);
-    }, [latestOffsetMs, isPlaying, feedback]);
+    }, [latestOffsetMs, isPlaying, feedback, onsetIndex]);
 
     const calculateRank = (score: number): string => {
         if (score >= 95) return 'S';

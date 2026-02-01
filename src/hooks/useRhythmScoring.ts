@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 interface UseRhythmScoringProps {
     onsets: number[];       // timestamps of detected hits
@@ -12,14 +12,27 @@ export type Feedback = 'Perfect' | 'Good' | 'Early' | 'Late' | 'Miss' | null;
 export const useRhythmScoring = ({ onsets, lastBeatTime, bpm, audioLatency = 0 }: UseRhythmScoringProps) => {
     const [feedback, setFeedback] = useState<Feedback>(null);
     const [offsetMs, setOffsetMs] = useState<number>(0);
+    const [onsetIndex, setOnsetIndex] = useState<number>(-1);
+    const processedOnsetsRef = useRef<number>(0);
 
     // Convert latency from ms to seconds
     const latencySec = audioLatency / 1000;
 
     useEffect(() => {
-        if (onsets.length === 0) return;
+        // Reset processed count if onsets cleared (new session)
+        if (onsets.length === 0) {
+            processedOnsetsRef.current = 0;
+            return;
+        }
 
-        const lastOnset = onsets[onsets.length - 1]; // Raw onset time
+        // Only process if we have a NEW onset
+        if (onsets.length <= processedOnsetsRef.current) {
+            return;
+        }
+
+        const currentOnsetIndex = onsets.length - 1;
+        const lastOnset = onsets[currentOnsetIndex]; // Raw onset time
+        processedOnsetsRef.current = onsets.length; // Mark as processed
         // Adjusted onset time (When the user actually hit)
         // If there is system latency L, the mic detects it L seconds LATER than it happened.
         // So actualTime = detectedTime - latency.
@@ -57,6 +70,7 @@ export const useRhythmScoring = ({ onsets, lastBeatTime, bpm, audioLatency = 0 }
 
         const ms = closestDiff * 1000;
         setOffsetMs(ms);
+        setOnsetIndex(currentOnsetIndex);
 
         // Scoring window (in ms)
         const PERFECT_WINDOW = 30;
@@ -76,5 +90,5 @@ export const useRhythmScoring = ({ onsets, lastBeatTime, bpm, audioLatency = 0 }
 
     }, [onsets, lastBeatTime, bpm, latencySec]);
 
-    return { feedback, offsetMs };
+    return { feedback, offsetMs, onsetIndex };
 };

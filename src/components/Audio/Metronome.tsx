@@ -600,7 +600,7 @@ export const Metronome: React.FC = () => {
     }, [onsets, calibrationState]);
 
 
-    const { feedback, offsetMs } = useRhythmScoring({ onsets, lastBeatTime, bpm, audioLatency });
+    const { feedback, offsetMs, onsetIndex } = useRhythmScoring({ onsets, lastBeatTime, bpm, audioLatency });
     const { startRecording, stopRecording, clearRecording, audioBlob, startTime, duration } = useAudioRecorder();
     const recordingStartedRef = React.useRef(false);
 
@@ -610,7 +610,8 @@ export const Metronome: React.FC = () => {
         bpm,
         patternId: selectedPatternId,
         latestOffsetMs: offsetMs,
-        feedback
+        feedback,
+        onsetIndex
     });
 
     // Wrappers for settings updates

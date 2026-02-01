@@ -373,6 +373,17 @@ export const Metronome: React.FC = () => {
                                 >
                                     Cancel
                                 </button>
+                                <div style={{
+                                    marginTop: '8px',
+                                    fontSize: '0.6rem',
+                                    color: '#aaa',
+                                    textAlign: 'left',
+                                    width: '100%',
+                                    background: 'rgba(0,0,0,0.5)',
+                                    padding: '4px'
+                                }}>
+                                    {debugLog.map((l, i) => <div key={i}>{l}</div>)}
+                                </div>
                             </div>
                         )}
 

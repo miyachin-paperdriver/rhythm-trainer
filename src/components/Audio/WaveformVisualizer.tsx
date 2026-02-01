@@ -100,49 +100,52 @@ export const WaveformVisualizer: React.FC<WaveformVisualizerProps> = ({ audioBlo
             const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
             playbackContextRef.current = ctx;
 
+            if (ctx.state === 'suspended') {
+                ctx.resume();
+            }
+
             const source = ctx.createBufferSource();
             source.buffer = audioBuffer;
             source.connect(ctx.destination);
 
-            source.onended = () => {
-                setIsPlaying(false);
-                ctx.close(); // Clean up
-            };
+            setIsPlaying(false);
+            // ctx.close(); 
+        };
 
-            source.start(0);
-            sourceRef.current = source;
-            setIsPlaying(true);
-        }
-    };
+        source.start(0);
+        sourceRef.current = source;
+        setIsPlaying(true);
+    }
+};
 
-    if (!audioBlob) return null;
+if (!audioBlob) return null;
 
-    return (
-        <div className="waveform-container" style={{ width: '100%', marginTop: '1rem' }}>
-            <h4 style={{ color: '#aaa', marginBottom: '0.5rem' }}>Session Recording & Onset Detection</h4>
-            <canvas
-                ref={canvasRef}
-                width={600}
-                height={150}
-                style={{ width: '100%', height: 'auto', borderRadius: '8px', background: '#222' }}
-            />
-            <div style={{ display: 'flex', gap: '1rem', marginTop: '0.5rem' }}>
-                <button
-                    onClick={togglePlayback}
-                    style={{
-                        padding: '0.5rem 1rem',
-                        background: isPlaying ? 'var(--color-accent)' : 'var(--color-primary)',
-                        color: isPlaying ? '#fff' : '#000',
-                        border: 'none',
-                        borderRadius: '4px',
-                        fontWeight: 'bold',
-                        cursor: 'pointer',
-                        minWidth: '140px'
-                    }}
-                >
-                    {isPlaying ? '⏹ Stop' : '▶ Play Recording'}
-                </button>
-            </div>
+return (
+    <div className="waveform-container" style={{ width: '100%', marginTop: '1rem' }}>
+        <h4 style={{ color: '#aaa', marginBottom: '0.5rem' }}>Session Recording & Onset Detection</h4>
+        <canvas
+            ref={canvasRef}
+            width={600}
+            height={150}
+            style={{ width: '100%', height: 'auto', borderRadius: '8px', background: '#222' }}
+        />
+        <div style={{ display: 'flex', gap: '1rem', marginTop: '0.5rem' }}>
+            <button
+                onClick={togglePlayback}
+                style={{
+                    padding: '0.5rem 1rem',
+                    background: isPlaying ? 'var(--color-accent)' : 'var(--color-primary)',
+                    color: isPlaying ? '#fff' : '#000',
+                    border: 'none',
+                    borderRadius: '4px',
+                    fontWeight: 'bold',
+                    cursor: 'pointer',
+                    minWidth: '140px'
+                }}
+            >
+                {isPlaying ? '⏹ Stop' : '▶ Play Recording'}
+            </button>
         </div>
-    );
+    </div>
+);
 };

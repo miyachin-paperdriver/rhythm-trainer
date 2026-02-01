@@ -20,12 +20,12 @@ export const Metronome: React.FC = () => {
     // ---- Hooks ----
     const {
         bpm, isPlaying, start, stop, changeBpm,
-        currentStep, lastBeatTime, isMuted,
+        currentStep, lastBeatTime,
         setSubdivision, setGapClick,
         audioContext
     } = useMetronome();
 
-    const { isMicReady, startAnalysis, stopAnalysis, onsets, error, mediaStream } = useAudioAnalysis({ audioContext });
+    const { isMicReady, startAnalysis, stopAnalysis, onsets, mediaStream } = useAudioAnalysis({ audioContext });
     const { feedback, offsetMs } = useRhythmScoring({ onsets, lastBeatTime, bpm });
     const { startRecording, stopRecording, audioBlob, startTime, duration } = useAudioRecorder();
 

@@ -63,7 +63,7 @@ export class AudioAnalyzer {
     private analyzeLoop() {
         if (!this.isRunning || !this.analyser || !this.inputBuffer) return;
 
-        this.analyser.getFloatTimeDomainData(this.inputBuffer as unknown as Float32Array);
+        this.analyser.getFloatTimeDomainData(this.inputBuffer as any);
 
         // Simple energy-based onset detection
         // Calculate RMS (Root Mean Square)

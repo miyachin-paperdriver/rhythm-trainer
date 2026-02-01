@@ -187,6 +187,7 @@ export const Metronome: React.FC = () => {
     const finishMicCalibration = (peaksOverride?: number[]) => {
         if (micCalibRef.current.poll) clearInterval(micCalibRef.current.poll);
         if (micCalibRef.current.timer) clearTimeout(micCalibRef.current.timer);
+        micCalibRef.current.poll = null;
         micCalibRef.current.timer = null;
 
         const noise = micCalibState.noisePeak;
@@ -241,6 +242,7 @@ export const Metronome: React.FC = () => {
         if (micCalibRef.current.poll) clearInterval(micCalibRef.current.poll);
         if (micCalibRef.current.timer) clearTimeout(micCalibRef.current.timer);
         setMicCalibState({ active: false, step: 'idle', noisePeak: 0, signalPeaks: [], hitCount: 0, message: '' });
+        setIsCalibrating(false);
     };
 
     // NEW STRATEGY for Calibration:

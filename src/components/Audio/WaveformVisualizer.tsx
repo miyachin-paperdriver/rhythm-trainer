@@ -14,7 +14,7 @@ export const WaveformVisualizer: React.FC<WaveformVisualizerProps> = ({
     audioBlob,
     onsets,
     startTime,
-    duration,
+    // duration removed
     audioContext,
     beatHistory = [],
     audioLatency = 0
@@ -26,7 +26,7 @@ export const WaveformVisualizer: React.FC<WaveformVisualizerProps> = ({
     // Playback
     const [isPlaying, setIsPlaying] = React.useState(false);
     const sourceRef = useRef<AudioBufferSourceNode | null>(null);
-    const playbackContextRef = useRef<AudioContext | null>(null);
+    // playbackContextRef removed
 
     // Zoom & Interaction
     const [zoom, setZoom] = useState(1);

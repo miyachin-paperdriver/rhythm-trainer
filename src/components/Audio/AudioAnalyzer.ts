@@ -74,7 +74,7 @@ export class AudioAnalyzer {
     private analyzeLoop() {
         if (!this.isRunning || !this.analyser || !this.inputBuffer) return;
 
-        this.analyser.getFloatTimeDomainData(this.inputBuffer);
+        this.analyser.getFloatTimeDomainData(this.inputBuffer as any);
 
         // Find peak amplitude and its index
         let peakAmplitude = 0;
@@ -90,7 +90,7 @@ export class AudioAnalyzer {
             sum += abs * abs;
         }
 
-        const rms = Math.sqrt(sum / this.inputBuffer.length);
+        // const rms = Math.sqrt(sum / this.inputBuffer.length);
 
         // Use peak amplitude for threshold check as it's more sensitive for sharp clicks
         // But keep RMS for general noise gate if needed. 

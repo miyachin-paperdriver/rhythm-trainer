@@ -155,8 +155,8 @@ export const Metronome: React.FC = () => {
                     gain.connect(audioContext.destination);
 
                     const isTarget = i === 3;
-                    osc.type = isTarget ? 'triangle' : 'square'; // Triangle for target (cleaner high), Square for primer (buzzer)
-                    osc.frequency.value = isTarget ? 1200 : 600;
+                    osc.type = 'square'; // All Square for max energy/detection
+                    osc.frequency.value = 600; // All 600Hz
 
                     // Gain Envelope: Linear Ramp for controlled click
                     gain.gain.setValueAtTime(0, t);

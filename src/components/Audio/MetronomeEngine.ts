@@ -37,15 +37,16 @@ export class MetronomeEngine {
         if (this.isPlaying) return;
         this.init();
 
+        // 1. Force unlock immediately within user gesture (Sync)
+        this.unlockAudioContext();
+
+        // 2. Resume context
         if (this.audioContext?.state === 'suspended') {
             await this.audioContext.resume();
         }
 
-        // Force unlock by playing silent buffer (iOS workaround)
-        this.unlockAudioContext();
-
-        // Workaround for "fade-in" effect: wait a bit for hardware to fully unmute
-        // Increasing to 600ms to ensure first beat is audible
+        // 3. Workaround for "fade-in" effect: wait a bit for hardware to fully unmute
+        // Increasing to 600ms to ensure first beat is audible. Buffer maintains activity.
         await new Promise(r => setTimeout(r, 600));
 
         this.isPlaying = true;

@@ -14,10 +14,9 @@ export const useAudioRecorder = () => {
 
         try {
             // Detect supported MIME type
-            let mimeType = 'audio/webm';
-            // Safari/iOS prefers mp4. Chrome prefers webm/ogg.
-            // Check mp4 first for better iOS compatibility.
-            const types = ['audio/mp4', 'audio/webm', 'audio/ogg', 'audio/wav'];
+            let mimeType = '';
+            // Safari/iOS prefers mp4/aac. Chrome prefers webm/ogg.
+            const types = ['audio/mp4', 'audio/aac', 'audio/webm', 'audio/ogg', 'audio/wav'];
             for (const type of types) {
                 if (MediaRecorder.isTypeSupported(type)) {
                     mimeType = type;
@@ -25,12 +24,17 @@ export const useAudioRecorder = () => {
                 }
             }
 
-            const recorder = new MediaRecorder(stream, { mimeType });
+            // Fallback or specific options
+            const options = mimeType ? { mimeType } : undefined;
+            const recorder = new MediaRecorder(stream, options);
+
             recorder.ondataavailable = (e) => {
                 if (e.data.size > 0) chunksRef.current.push(e.data);
             };
             recorder.onstop = () => {
-                const blob = new Blob(chunksRef.current, { type: mimeType });
+                // Use actual mimeType from recorder if available
+                const finalType = recorder.mimeType || mimeType || 'audio/webm';
+                const blob = new Blob(chunksRef.current, { type: finalType });
                 setAudioBlob(blob);
                 setDuration((Date.now() - timestampRef.current) / 1000);
             };

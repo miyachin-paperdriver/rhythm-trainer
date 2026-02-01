@@ -647,19 +647,56 @@ export const Metronome: React.FC = () => {
             recordingStartedRef.current = false;
 
             if (!disableRecording) {
-                // Ensure AudioContext is active
-                if (audioContext?.state === 'suspended') {
-                    try { await audioContext.resume(); } catch (e) { console.warn(e); }
+                // 1. Ensure Audio Context exists (resume/create)
+                if (!audioContextRef.current) {
+                    console.log('[Start] Init Audio Context...');
+                    initializeAudio();
+                    // Wait for ref to populate
+                    let retries = 0;
+                    while (!audioContextRef.current && retries < 20) {
+                        await new Promise(r => setTimeout(r, 100));
+                        retries++;
+                    }
                 }
+
+                // Resume if suspended
+                if (audioContextRef.current?.state === 'suspended') {
+                    try { await audioContextRef.current.resume(); } catch (e) { console.warn(e); }
+                }
+
+                // 2. Wait for Analyzer to be populated (via Effect)
+                // If audioContext just got created, useAudioAnalysis needs a render cycle to create analyzer
+                let retries = 0;
+                while (!micAnalyzerRef.current && retries < 50) {
+                    await new Promise(r => setTimeout(r, 50));
+                    retries++;
+                }
+
+                if (!micAnalyzerRef.current) {
+                    alert("Microphone initialization failed. Please try again or use 'No Record' mode.");
+                    return; // Do not start
+                }
+
                 try {
+                    // 3. Request Mic Permission
                     await startAnalysis();
                 } catch (e) {
                     console.error("Mic failed", e);
-                    // Proceed anyway? Or stop? 
-                    // User likely wants to know, but let's let start() happen so they can at least play.
+                    alert("Microphone access was denied or failed. Please check permissions.");
+                    return; // Do not start
+                }
+            } else {
+                // Even if No Record, ensure AudioContext is ready for playback
+                if (!audioContextRef.current) {
+                    initializeAudio();
+                    await new Promise(r => setTimeout(r, 100)); // Short wait
+                }
+                if (audioContextRef.current?.state === 'suspended') {
+                    try { await audioContextRef.current.resume(); } catch (e) { console.warn(e); }
                 }
             }
 
+            // Only reach here if Mic is ready (or disabled)
             start();
         }
     };

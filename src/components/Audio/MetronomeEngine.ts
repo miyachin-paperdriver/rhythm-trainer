@@ -44,6 +44,9 @@ export class MetronomeEngine {
         // Force unlock by playing silent buffer (iOS workaround)
         this.unlockAudioContext();
 
+        // Workaround for "fade-in" effect: wait a bit for hardware to fully unmute
+        await new Promise(r => setTimeout(r, 400));
+
         this.isPlaying = true;
         this.beatNumber = 0;
         this.subBeatNumber = 0;

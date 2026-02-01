@@ -20,11 +20,12 @@ export const HistoryView = () => {
     return (
         <div className="history-view" style={{
             width: '100%',
-            maxWidth: '600px',
+            maxWidth: '100%',
             marginTop: '2rem',
             padding: '1rem',
             background: 'var(--color-surface)',
-            borderRadius: 'var(--radius-lg)'
+            borderRadius: 'var(--radius-lg)',
+            boxSizing: 'border-box'
         }}>
             <h3 style={{ color: 'var(--color-primary)', borderBottom: '1px solid #333', paddingBottom: '0.5rem' }}>
                 Training History

@@ -135,34 +135,55 @@ export const Metronome: React.FC = () => {
         // If we need to play a click (startTime is 0)
         if (calibrationState.startTime === 0) {
             const now = audioContext.currentTime;
+            log(`[Sched] Now: ${now.toFixed(3)}`);
 
-            // Wait a bit before clicking (stability)
-            const scheduleTime = now + 0.5;
+            // Robust Sequence: 4 beats
+            // 3 Primers (ensure wake up) + 1 Target
+            const GAP = 0.6; // 600ms = 100 BPM
+            const times = [
+                now + GAP * 1,
+                now + GAP * 2,
+                now + GAP * 3,
+                now + GAP * 4  // Target
+            ];
 
-            // Generate Click
-            const osc = audioContext.createOscillator();
-            const gain = audioContext.createGain();
-            osc.connect(gain);
-            gain.connect(audioContext.destination);
+            try {
+                times.forEach((t, i) => {
+                    const osc = audioContext.createOscillator();
+                    const gain = audioContext.createGain();
+                    osc.connect(gain);
+                    gain.connect(audioContext.destination);
 
-            osc.frequency.setValueAtTime(800, scheduleTime);
-            osc.frequency.exponentialRampToValueAtTime(0.01, scheduleTime + 0.1);
-            gain.gain.setValueAtTime(0.8, scheduleTime); // Loud click
-            gain.gain.exponentialRampToValueAtTime(0.01, scheduleTime + 0.1);
+                    const isTarget = i === 3;
+                    osc.type = isTarget ? 'triangle' : 'square'; // Triangle for target (cleaner high), Square for primer (buzzer)
+                    osc.frequency.value = isTarget ? 1200 : 600;
 
-            osc.start(scheduleTime);
-            osc.stop(scheduleTime + 0.1);
+                    // Gain Envelope: Linear Ramp for controlled click
+                    gain.gain.setValueAtTime(0, t);
+                    gain.gain.linearRampToValueAtTime(1.0, t + 0.01); // Fast attack
+                    gain.gain.setValueAtTime(1.0, t + 0.08); // Sustain
+                    gain.gain.linearRampToValueAtTime(0, t + 0.1); // Release
 
-            console.log('[AutoCheck] Click scheduled at', scheduleTime, 'Current:', now);
-            setCalibrationState(prev => ({ ...prev, startTime: scheduleTime, status: 'listening' }));
+                    osc.start(t);
+                    osc.stop(t + 0.15);
 
-            // Set timeout for this specific click
-            if (calibrationTimeoutRef.current) clearTimeout(calibrationTimeoutRef.current);
-            calibrationTimeoutRef.current = setTimeout(() => {
-                console.warn('[AutoCheck] Timeout waiting for onset');
-                abortCalibration();
-                alert("Calibration failed: Microphone didn't detect the click. Please increase volume or use external speakers.");
-            }, 3000); // 3s timeout
+                    log(`[Sched] #${i + 1} @ ${t.toFixed(3)} ${isTarget ? '(TARGET)' : ''}`);
+                });
+
+                const targetTime = times[3];
+                setCalibrationState(prev => ({ ...prev, startTime: targetTime, status: 'listening' }));
+
+                // Timeout
+                if (calibrationTimeoutRef.current) clearTimeout(calibrationTimeoutRef.current);
+                calibrationTimeoutRef.current = setTimeout(() => {
+                    log('[Err] Timeout waiting for mic input');
+                    abortCalibration();
+                    alert("Calibration failed: Microphone didn't detect the final beep. Please maximize volume.");
+                }, 6000);
+
+            } catch (e: any) {
+                log(`[Err] Sched Failed: ${e.message}`);
+            }
         }
 
     }, [calibrationState, audioContext, isMicReady, startAnalysis]);

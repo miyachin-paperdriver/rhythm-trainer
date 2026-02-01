@@ -354,16 +354,21 @@ export const Metronome: React.FC = () => {
             setTimeout(() => {
                 setMicCalibState({ active: false, step: 'idle', noisePeak: 0, bleedPeak: 0, signalPeaks: [], hitCount: 0, message: '' });
                 setIsCalibrating(false);
-                stopAnalysis(); // Ensure mic is closed
+                stopAnalysis();
             }, 2000);
             return;
         }
 
-        // Warn if Bleed is too close to Signal
-        // If Bleed is > 50% of Signal, it's risky
-        if (bleed > signalMax * 0.6) {
-            setMicCalibState(prev => ({ ...prev, message: 'Warning: Click sound is too loud relative to hits. Reduce speaker volume or move mic.' }));
-            // We can still try to set something, but it will be hard.
+        // Check if calibration is feasible
+        // If bleed >= 80% of signal, it's impossible to distinguish clicks from pad hits
+        if (bleed >= signalMax * 0.8) {
+            setMicCalibState(prev => ({ ...prev, message: 'Error: Click sound is louder than pad sound. Move mic closer to pad or reduce speaker volume.' }));
+            setTimeout(() => {
+                setMicCalibState({ active: false, step: 'idle', noisePeak: 0, bleedPeak: 0, signalPeaks: [], hitCount: 0, message: '' });
+                setIsCalibrating(false);
+                stopAnalysis();
+            }, 4000);
+            return;
         }
 
         // Calculate

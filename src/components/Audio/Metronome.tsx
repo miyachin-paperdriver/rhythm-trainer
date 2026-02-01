@@ -406,7 +406,16 @@ export const Metronome: React.FC = () => {
                                     Cancel
                                 </button>
                                 <div style={{
-                                    marginTop: '8px',
+                                    marginTop: '4px',
+                                    fontSize: '0.65rem',
+                                    color: '#faad14',
+                                    textAlign: 'center',
+                                    lineHeight: '1.2'
+                                }}>
+                                    💡 If detection fails, cup your hand around the speaker/mic to reflect sound.
+                                </div>
+                                <div style={{
+                                    marginTop: '4px',
                                     fontSize: '0.6rem',
                                     color: '#aaa',
                                     textAlign: 'left',

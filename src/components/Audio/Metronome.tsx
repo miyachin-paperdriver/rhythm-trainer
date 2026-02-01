@@ -66,6 +66,12 @@ export const Metronome: React.FC = () => {
         threshold: micThreshold
     });
 
+    // Mirror analyzer in ref for async access
+    const micAnalyzerRef = React.useRef<any>(null);
+    useEffect(() => {
+        micAnalyzerRef.current = analyzer;
+    }, [analyzer]);
+
     // ---- Mic Auto Calibration ----
     const [micCalibState, setMicCalibState] = useState<{
         active: boolean,
@@ -85,24 +91,45 @@ export const Metronome: React.FC = () => {
     }>({ timer: null, poll: null, startTime: 0, maxPeak: 0, lastHitTime: 0 });
 
     const runMicAutoCalibration = async () => {
+        setIsCalibrating(true);
         if (!isMicReady) {
             await startAnalysis();
         }
-        setMicCalibState({ active: true, step: 'noise', noisePeak: 0, signalPeaks: [], hitCount: 0, message: 'Quietly wait... Measuring noise.' });
+
+        setMicCalibState({ active: true, step: 'noise', noisePeak: 0, signalPeaks: [], hitCount: 0, message: 'Starting... Please wait.' });
+
+        // Wait for Analyzer
+        let retries = 0;
+        while (!micAnalyzerRef.current && retries < 30) {
+            await new Promise(r => setTimeout(r, 100)); // Wait up to 3s
+            retries++;
+        }
+
+        if (!micAnalyzerRef.current) {
+            alert("Microphone not accessible. Please check permissions.");
+            setMicCalibState({ active: false, step: 'idle', noisePeak: 0, signalPeaks: [], hitCount: 0, message: '' });
+            setIsCalibrating(false);
+            return;
+        }
+
+        setMicCalibState(prev => ({ ...prev, message: 'Quietly wait... Measuring noise.' }));
 
         // Reset Ref
         micCalibRef.current = { timer: null, poll: null, startTime: Date.now(), maxPeak: 0, lastHitTime: 0 };
 
         // Step 1: Measure Noise (3s)
         micCalibRef.current.poll = setInterval(() => {
-            if (analyzer) {
-                const lvl = analyzer.currentLevel;
+            if (micAnalyzerRef.current) {
+                const lvl = micAnalyzerRef.current.currentLevel;
                 if (lvl > micCalibRef.current.maxPeak) micCalibRef.current.maxPeak = lvl;
             }
         }, 50);
 
         micCalibRef.current.timer = setTimeout(() => {
             if (micCalibRef.current.poll) clearInterval(micCalibRef.current.poll);
+            micCalibRef.current.poll = null;
+            micCalibRef.current.timer = null;
+
             const noise = micCalibRef.current.maxPeak;
 
             console.log('[MicCalib] Noise Floor:', noise);
@@ -119,13 +146,14 @@ export const Metronome: React.FC = () => {
             // Step 2: Measure Signal
             micCalibRef.current.maxPeak = 0; // Reset max for signal phase
             micCalibRef.current.startTime = Date.now();
+            micCalibRef.current.lastHitTime = 0;
             const collectedPeaks: number[] = [];
             let hits = 0;
 
             // Re-start polling for signal detection
             micCalibRef.current.poll = setInterval(() => {
-                if (analyzer) {
-                    const lvl = analyzer.currentLevel;
+                if (micAnalyzerRef.current) {
+                    const lvl = micAnalyzerRef.current.currentLevel;
                     const now = Date.now();
 
                     // Track global max for safety
@@ -208,6 +236,7 @@ export const Metronome: React.FC = () => {
             setMicCalibState(prev => ({ ...prev, message: 'No signal detected. Try forcing Gain up.' }));
             setTimeout(() => {
                 setMicCalibState({ active: false, step: 'idle', noisePeak: 0, signalPeaks: [], hitCount: 0, message: '' });
+                setIsCalibrating(false);
             }, 2000);
             return;
         }
@@ -235,6 +264,7 @@ export const Metronome: React.FC = () => {
 
         setTimeout(() => {
             setMicCalibState({ active: false, step: 'idle', noisePeak: 0, signalPeaks: [], hitCount: 0, message: '' });
+            setIsCalibrating(false);
         }, 3000);
     };
 

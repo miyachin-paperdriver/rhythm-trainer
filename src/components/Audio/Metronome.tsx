@@ -20,7 +20,7 @@ export const Metronome: React.FC = () => {
     // ---- Hooks ----
     const {
         bpm, isPlaying, start, stop, changeBpm,
-        currentStep, lastBeatTime, isMuted, isCountIn,
+        currentStep, lastBeatTime, isCountIn,
         setSubdivision, setGapClick,
         audioContext
     } = useMetronome();
@@ -141,6 +141,24 @@ export const Metronome: React.FC = () => {
                     {/* Visualizer & Feedback */}
                     <div style={{ position: 'relative' }}>
                         <PatternVisualizer pattern={selectedPattern} currentStep={currentStep} isPlaying={isPlaying} />
+
+                        {isPlaying && isCountIn && (
+                            <div style={{
+                                position: 'absolute',
+                                top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
+                                background: 'rgba(0,0,0,0.8)',
+                                color: '#fff',
+                                padding: '1rem',
+                                borderRadius: '1rem',
+                                fontWeight: 'bold',
+                                fontSize: '2rem',
+                                zIndex: 100,
+                                pointerEvents: 'none',
+                                whiteSpace: 'nowrap'
+                            }}>
+                                COUNT IN
+                            </div>
+                        )}
 
                         {feedback && (
                             <div style={{

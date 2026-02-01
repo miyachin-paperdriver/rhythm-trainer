@@ -94,9 +94,11 @@ export const WaveformVisualizer: React.FC<WaveformVisualizerProps> = ({ audioBlo
         } else {
             if (!audioBuffer) return;
 
-            // Create new context or reuse? New is safer for one-off playback
-            const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
-            playbackContextRef.current = ctx;
+            const ctx = audioContext || new (window.AudioContext || (window as any).webkitAudioContext)();
+
+            if (!audioContext) {
+                playbackContextRef.current = ctx;
+            }
 
             if (ctx.state === 'suspended') {
                 ctx.resume();
@@ -108,8 +110,6 @@ export const WaveformVisualizer: React.FC<WaveformVisualizerProps> = ({ audioBlo
 
             source.onended = () => {
                 setIsPlaying(false);
-                // We can close the context to free resources
-                // ctx.close();
             };
 
             source.start(0);

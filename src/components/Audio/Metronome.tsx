@@ -499,7 +499,47 @@ export const Metronome: React.FC = () => {
             </div>
 
             {activeTab === 'training' && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', maxWidth: '100%', overflowX: 'hidden', padding: '0 1rem' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', maxWidth: '100%', overflowX: 'hidden', padding: '0 1rem', position: 'relative' }}>
+                    {micCalibState.active && (
+                        <div style={{
+                            position: 'absolute',
+                            top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
+                            background: 'rgba(0,0,0,0.85)',
+                            color: '#fff',
+                            padding: '1.5rem',
+                            borderRadius: '1rem',
+                            fontWeight: 'bold',
+                            fontSize: '1rem',
+                            zIndex: 110,
+                            textAlign: 'center',
+                            width: '80%',
+                            backdropFilter: 'blur(4px)',
+                            border: '1px solid var(--color-primary)'
+                        }}>
+                            <div style={{ marginBottom: '1rem', fontSize: '1.2rem', color: 'var(--color-primary)' }}>
+                                Mic Calibration
+                            </div>
+                            <div style={{ marginBottom: '1.5rem' }}>
+                                {micCalibState.message}
+                            </div>
+                            {micCalibState.step === 'finished' ? (
+                                <div style={{ color: 'var(--color-success)' }}>Updated!</div>
+                            ) : (
+                                <button
+                                    onClick={cancelMicCalibration}
+                                    style={{
+                                        padding: '0.5rem 1rem',
+                                        background: '#444',
+                                        border: 'none',
+                                        color: '#fff',
+                                        borderRadius: '4px'
+                                    }}
+                                >
+                                    Cancel
+                                </button>
+                            )}
+                        </div>
+                    )}
 
                     {/* 1. Pattern Select */}
                     <div>

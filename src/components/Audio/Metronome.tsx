@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useMetronome } from '../../hooks/useMetronome';
 import { useAudioAnalysis } from '../../hooks/useAudioAnalysis';
 import { useRhythmScoring } from '../../hooks/useRhythmScoring';
@@ -16,6 +17,7 @@ import { ManualHelper } from '../Manual/ManualHelper';
 import { PATTERNS } from '../../utils/patterns';
 
 export const Metronome: React.FC = () => {
+    const { t } = useTranslation();
     // ---- State ----
     const [activeTab, setActiveTab] = useState<'training' | 'history' | 'manual' | 'settings'>('training');
     const [selectedPatternId, setSelectedPatternId] = useState(PATTERNS[2].id);
@@ -773,7 +775,7 @@ export const Metronome: React.FC = () => {
                             cursor: 'pointer'
                         }}
                     >
-                        {tab}
+                        {t(`tabs.${tab}`)}
                     </button>
                 ))}
 

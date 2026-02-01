@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 interface MetronomeSettingsProps {
     onThemeChange: (theme: 'light' | 'dark') => void;
@@ -33,12 +34,18 @@ export const MetronomeSettings: React.FC<MetronomeSettingsProps> = ({
     onRunMicCalibration,
     isMicCalibrating
 }) => {
+    const { t, i18n } = useTranslation();
     const [theme, setTheme] = useState<'light' | 'dark'>('light');
 
     const toggleTheme = () => {
         const next = theme === 'dark' ? 'light' : 'dark';
         setTheme(next);
         onThemeChange(next);
+    };
+
+    const toggleLanguage = () => {
+        const nextLng = i18n.language === 'en' ? 'ja' : 'en';
+        i18n.changeLanguage(nextLng);
     };
 
     return (
@@ -58,17 +65,34 @@ export const MetronomeSettings: React.FC<MetronomeSettingsProps> = ({
                 borderBottom: '1px solid var(--color-border)',
                 paddingBottom: '0.5rem'
             }}>
-                Settings
+                {t('settings.title')}
             </h2>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
 
+                {/* Language (Top of settings) */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <label style={{ fontSize: '0.85rem', color: 'var(--color-text-dim)' }}>{t('settings.language')}</label>
+                    <button onClick={toggleLanguage} style={{
+                        background: 'var(--color-surface)',
+                        border: '1px solid var(--color-border)',
+                        color: 'var(--color-text)',
+                        borderRadius: '20px',
+                        fontWeight: 'bold',
+                        padding: '6px 16px',
+                        transition: 'all 0.2s',
+                        cursor: 'pointer'
+                    }}>
+                        {i18n.language === 'en' ? 'English' : '日本語'}
+                    </button>
+                </div>
+
                 {/* Latency Calibration */}
                 <div>
-                    <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.85rem', color: 'var(--color-text-dim)' }}>Latency Calibration (ms)</label>
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.85rem', color: 'var(--color-text-dim)' }}>{t('settings.latency_calibration')}</label>
                     <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-end' }}>
                         <div style={{ flex: 1 }}>
-                            <label style={{ fontSize: '0.85rem', color: 'var(--color-text-dim)' }}>Audio Latency</label>
+                            <label style={{ fontSize: '0.85rem', color: 'var(--color-text-dim)' }}>{t('settings.audio_latency')}</label>
                             <input
                                 type="number"
                                 value={audioLatency}
@@ -98,17 +122,17 @@ export const MetronomeSettings: React.FC<MetronomeSettingsProps> = ({
                                     cursor: isCalibrating ? 'wait' : 'pointer'
                                 }}
                             >
-                                {isCalibrating ? 'Running...' : 'Auto Check'}
+                                {isCalibrating ? t('settings.running') : t('settings.auto_check')}
                             </button>
                         </div>
                     </div>
-                    {isCalibrating && <div style={{ fontSize: '0.7rem', color: 'var(--color-accent)', marginTop: '4px' }}>Outputting click... Please wait.</div>}
+                    {isCalibrating && <div style={{ fontSize: '0.7rem', color: 'var(--color-accent)', marginTop: '4px' }}>{t('settings.calibrating_msg')}</div>}
                 </div>
 
                 {/* Microphone Settings */}
                 <div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                        <label style={{ fontSize: '0.85rem', color: 'var(--color-text-dim)' }}>Microphone Settings</label>
+                        <label style={{ fontSize: '0.85rem', color: 'var(--color-text-dim)' }}>{t('settings.mic_settings')}</label>
                         <button
                             onClick={onRunMicCalibration}
                             disabled={isMicCalibrating}
@@ -124,13 +148,13 @@ export const MetronomeSettings: React.FC<MetronomeSettingsProps> = ({
                                 boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
                             }}
                         >
-                            Auto Set
+                            {t('settings.auto_set')}
                         </button>
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', padding: '0 4px' }}>
                         <div>
                             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: 'var(--color-text-dim)', marginBottom: '4px' }}>
-                                <span>Gain</span>
+                                <span>{t('settings.gain')}</span>
                                 <span>{micGain.toFixed(1)}x</span>
                             </div>
                             <input
@@ -143,7 +167,7 @@ export const MetronomeSettings: React.FC<MetronomeSettingsProps> = ({
                         </div>
                         <div>
                             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: 'var(--color-text-dim)', marginBottom: '4px' }}>
-                                <span>Sensitivity (Threshold: {micThreshold.toFixed(2)})</span>
+                                <span>{t('settings.sensitivity')} (Threshold: {micThreshold.toFixed(2)})</span>
                             </div>
                             <input
                                 type="range"
@@ -153,7 +177,7 @@ export const MetronomeSettings: React.FC<MetronomeSettingsProps> = ({
                                 style={{ width: '100%', boxSizing: 'border-box', accentColor: 'var(--color-primary)', cursor: 'pointer' }}
                             />
                             <div style={{ fontSize: '0.85rem', color: '#888', marginTop: '2px' }}>
-                                Lower is more sensitive. Increase if too noisy.
+                                {t('settings.lower_is_more_sensitive')}
                             </div>
                         </div>
                     </div>
@@ -161,7 +185,7 @@ export const MetronomeSettings: React.FC<MetronomeSettingsProps> = ({
 
                 {/* Theme */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <label style={{ fontSize: '0.85rem', color: 'var(--color-text-dim)' }}>Theme</label>
+                    <label style={{ fontSize: '0.85rem', color: 'var(--color-text-dim)' }}>{t('settings.theme')}</label>
                     <button onClick={toggleTheme} style={{
                         background: 'var(--color-surface)',
                         border: '1px solid var(--color-border)',
@@ -171,7 +195,7 @@ export const MetronomeSettings: React.FC<MetronomeSettingsProps> = ({
                         padding: '6px 16px',
                         transition: 'all 0.2s'
                     }}>
-                        {theme === 'dark' ? 'Dark 🌙' : 'Light ☀️'}
+                        {theme === 'dark' ? t('settings.dark') : t('settings.light')}
                     </button>
                 </div>
 

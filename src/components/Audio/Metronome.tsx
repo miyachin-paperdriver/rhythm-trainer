@@ -21,6 +21,11 @@ export const Metronome: React.FC = () => {
 
     // Latency State
     const [audioLatency, setAudioLatency] = useState(() => Number(localStorage.getItem('audioLatency') || 0));
+
+    // Mic Settings State
+    const [micGain, setMicGain] = useState(() => Number(localStorage.getItem('micGain') || 7.0));
+    const [micThreshold, setMicThreshold] = useState(() => Number(localStorage.getItem('micThreshold') || 0.05));
+
     // Auto Calibration State
     const [isCalibrating, setIsCalibrating] = useState(false);
 
@@ -38,6 +43,14 @@ export const Metronome: React.FC = () => {
         localStorage.setItem('audioLatency', audioLatency.toString());
     }, [audioLatency]);
 
+    useEffect(() => {
+        localStorage.setItem('micGain', micGain.toString());
+    }, [micGain]);
+
+    useEffect(() => {
+        localStorage.setItem('micThreshold', micThreshold.toString());
+    }, [micThreshold]);
+
     // ---- Hooks ----
     const {
         bpm, isPlaying, start, stop, changeBpm,
@@ -47,7 +60,11 @@ export const Metronome: React.FC = () => {
         initializeAudio
     } = useMetronome();
 
-    const { isMicReady, startAnalysis, stopAnalysis, clearOnsets, onsets, mediaStream } = useAudioAnalysis({ audioContext });
+    const { isMicReady, startAnalysis, stopAnalysis, clearOnsets, onsets, mediaStream } = useAudioAnalysis({
+        audioContext,
+        gain: micGain,
+        threshold: micThreshold
+    });
 
     // NEW STRATEGY for Calibration:
     const [calibrationState, setCalibrationState] = useState<{
@@ -556,6 +573,10 @@ export const Metronome: React.FC = () => {
                         onAudioLatencyChange={setAudioLatency}
                         onRunAutoCalibration={runCalibration}
                         isCalibrating={calibrationState.active}
+                        micGain={micGain}
+                        onMicGainChange={setMicGain}
+                        micThreshold={micThreshold}
+                        onMicThresholdChange={setMicThreshold}
                     />
                 </div>
             )}

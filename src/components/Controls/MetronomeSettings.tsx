@@ -15,6 +15,12 @@ interface MetronomeSettingsProps {
     // Auto Calibration
     onRunAutoCalibration: () => void;
     isCalibrating: boolean;
+
+    // Mic Settings
+    micGain: number;
+    onMicGainChange: (val: number) => void;
+    micThreshold: number;
+    onMicThresholdChange: (val: number) => void;
 }
 
 export const MetronomeSettings: React.FC<MetronomeSettingsProps> = ({
@@ -26,7 +32,11 @@ export const MetronomeSettings: React.FC<MetronomeSettingsProps> = ({
     audioLatency,
     onAudioLatencyChange,
     onRunAutoCalibration,
-    isCalibrating
+    isCalibrating,
+    micGain,
+    onMicGainChange,
+    micThreshold,
+    onMicThresholdChange
 }) => {
     const [subdivision, setSub] = useState<Subdivision>(1);
     const [gapEnabled, setGapEnabled] = useState(false);

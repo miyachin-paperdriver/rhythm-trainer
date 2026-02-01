@@ -72,7 +72,9 @@ export const useAudioAnalysis = ({ audioContext, gain = 5.0, threshold = 0.1 }: 
         stopAnalysis,
         clearOnsets,
         onsets,
+        onsets,
         error,
-        mediaStream: analyzerRef.current?.mediaStream || null
+        mediaStream: analyzerRef.current?.mediaStream || null,
+        analyzer: analyzerRef.current // Expose instance for direct level access
     };
 };

@@ -60,11 +60,170 @@ export const Metronome: React.FC = () => {
         initializeAudio
     } = useMetronome();
 
-    const { isMicReady, startAnalysis, stopAnalysis, clearOnsets, onsets, mediaStream } = useAudioAnalysis({
+    const { isMicReady, startAnalysis, stopAnalysis, clearOnsets, onsets, mediaStream, analyzer } = useAudioAnalysis({
         audioContext,
         gain: micGain,
         threshold: micThreshold
     });
+
+    // ---- Mic Auto Calibration ----
+    const [micCalibState, setMicCalibState] = useState<{
+        active: boolean,
+        step: 'idle' | 'noise' | 'signal' | 'calculating' | 'finished',
+        noisePeak: number,
+        signalPeaks: number[],
+        message: string
+    }>({ active: false, step: 'idle', noisePeak: 0, signalPeaks: [], message: '' });
+
+    const micCalibRef = React.useRef<{
+        timer: any,
+        poll: any,
+        startTime: number,
+        maxPeak: number
+    }>({ timer: null, poll: null, startTime: 0, maxPeak: 0 });
+
+    const runMicAutoCalibration = async () => {
+        if (!isMicReady) {
+            await startAnalysis();
+        }
+        setMicCalibState({ active: true, step: 'noise', noisePeak: 0, signalPeaks: [], message: 'Quietly wait... Measuring noise.' });
+
+        // Reset Ref
+        micCalibRef.current = { timer: null, poll: null, startTime: Date.now(), maxPeak: 0 };
+
+        // Step 1: Measure Noise (3s)
+        micCalibRef.current.poll = setInterval(() => {
+            if (analyzer) {
+                const lvl = analyzer.currentLevel;
+                if (lvl > micCalibRef.current.maxPeak) micCalibRef.current.maxPeak = lvl;
+            }
+        }, 50);
+
+        micCalibRef.current.timer = setTimeout(() => {
+            if (micCalibRef.current.poll) clearInterval(micCalibRef.current.poll);
+            const noise = micCalibRef.current.maxPeak;
+
+            console.log('[MicCalib] Noise Floor:', noise);
+
+            setMicCalibState({
+                active: true,
+                step: 'signal',
+                noisePeak: noise,
+                signalPeaks: [],
+                message: 'Now HIT the pad 5 times!'
+            });
+
+            // Step 2: Measure Signal (Wait for 5 hits or timeout)
+            micCalibRef.current.maxPeak = 0; // Reset for signal
+            micCalibRef.current.startTime = Date.now();
+
+            const signalSamples: number[] = [];
+
+            // Re-start polling for signal detection
+            micCalibRef.current.poll = setInterval(() => {
+                if (analyzer) {
+                    const lvl = analyzer.currentLevel;
+                    // Simple peak hold logic with decay or just checking distinct hits?
+                    // Let's just grab peaks that exceed noise * 2
+                    if (lvl > noise * 1.5 && lvl > 0.01) {
+                        // This is a candidate
+                        if (lvl > micCalibRef.current.maxPeak) micCalibRef.current.maxPeak = lvl;
+                    }
+                }
+            }, 20);
+
+            // We use 'onsets' changes to capture hits? 
+            // 'onsets' updates are async. Let's use a specialized Effect for this or rely on onsets array.
+
+        }, 3000);
+    };
+
+    // Handle Signal Step in separate Effect to watch 'onsets'
+    useEffect(() => {
+        if (micCalibState.step !== 'signal') return;
+
+        // Check finding
+        // Since onsets appends, we check if new onsets appear. 
+        // Better: Use a dedicated listener or just simplistic timeout for now.
+        // Let's use a 5s timeout to gather peaks.
+
+        if (!micCalibRef.current.timer) {
+            micCalibRef.current.timer = setTimeout(() => {
+                finishMicCalibration();
+            }, 5000); // 5s listening
+        }
+
+    }, [micCalibState.step]);
+
+    // Watch onsets during signal calibration
+    useEffect(() => {
+        if (micCalibState.step === 'signal' && onsets.length > 0) {
+            // New onset, assume the user hit something
+            // We probably want to capture the PEAK level around this time.
+            // But we don't have historical peaks stored easily unless we tracked them.
+            // However, 'micCalibRef.current.maxPeak' tracks the max level seen in the poll loop.
+            // Let's just assume the user hits hard enough.
+
+            // Actually, we need multiple samples to be robust. 
+            // Let's just update the message.
+            const count = onsets.filter(t => t * 1000 > micCalibRef.current.startTime).length;
+            // note: onsets are audio time, startTime is Date.now(). Incompatible. 
+            // We'll just count how many onsets added since step change.
+            // Simpler: Just rely on the maxPeak observed during this 5s window.
+        }
+    }, [onsets]);
+
+    const finishMicCalibration = () => {
+        if (micCalibRef.current.poll) clearInterval(micCalibRef.current.poll);
+        if (micCalibRef.current.timer) clearTimeout(micCalibRef.current.timer);
+        micCalibRef.current.timer = null;
+
+        const noise = micCalibState.noisePeak;
+        const signalMax = micCalibRef.current.maxPeak;
+
+        console.log('[MicCalib] Signal Peak:', signalMax);
+
+        // Calculate
+        // Current Gain is 'micGain' (e.g. 7.0).
+        // With Gain 7.0, we got SignalMax (e.g. 0.2). 
+        // We want SignalMax to be ~0.7 (to have headroom but be loud).
+        // TargetGain = CurrentGain * (0.7 / SignalMax)
+
+        let targetGain = micGain;
+        if (signalMax > 0.001) {
+            targetGain = micGain * (0.5 / signalMax); // Aim for 0.5 peak (safer)
+        }
+
+        // Clamp
+        targetGain = Math.max(1.0, Math.min(10.0, targetGain));
+
+        // Threshold
+        // Should be above noise floor.
+        // New Noise Level with NEW gain will be: noise * (targetGain / micGain)
+        const projectedNoise = noise * (targetGain / micGain);
+        const projectedSignal = signalMax * (targetGain / micGain); // Should be ~0.5
+
+        // Set Threshold to 2x Noise or 0.15 of Signal, whichever is safer
+        let targetThreshold = Math.max(projectedNoise * 2.0, projectedSignal * 0.1);
+        targetThreshold = Math.max(0.02, Math.min(0.5, targetThreshold)); // Clamp 0.02 - 0.5
+
+        console.log(`[MicCalib] Result: Gain ${micGain.toFixed(1)}->${targetGain.toFixed(1)}, Thresh ${micThreshold.toFixed(3)}->${targetThreshold.toFixed(3)}`);
+
+        setMicGain(parseFloat(targetGain.toFixed(1)));
+        setMicThreshold(parseFloat(targetThreshold.toFixed(2)));
+
+        setMicCalibState(prev => ({ ...prev, step: 'finished', message: 'Calibration Complete!' }));
+
+        setTimeout(() => {
+            setMicCalibState({ active: false, step: 'idle', noisePeak: 0, signalPeaks: [], message: '' });
+        }, 2000);
+    };
+
+    const cancelMicCalibration = () => {
+        if (micCalibRef.current.poll) clearInterval(micCalibRef.current.poll);
+        if (micCalibRef.current.timer) clearTimeout(micCalibRef.current.timer);
+        setMicCalibState({ active: false, step: 'idle', noisePeak: 0, signalPeaks: [], message: '' });
+    };
 
     // NEW STRATEGY for Calibration:
     const [calibrationState, setCalibrationState] = useState<{
@@ -577,6 +736,8 @@ export const Metronome: React.FC = () => {
                         onMicGainChange={setMicGain}
                         micThreshold={micThreshold}
                         onMicThresholdChange={setMicThreshold}
+                        onRunMicCalibration={runMicAutoCalibration}
+                        isMicCalibrating={micCalibState.active}
                     />
                 </div>
             )}

@@ -21,6 +21,8 @@ interface MetronomeSettingsProps {
     onMicGainChange: (val: number) => void;
     micThreshold: number;
     onMicThresholdChange: (val: number) => void;
+    onRunMicCalibration: () => void;
+    isMicCalibrating: boolean;
 }
 
 export const MetronomeSettings: React.FC<MetronomeSettingsProps> = ({
@@ -36,7 +38,9 @@ export const MetronomeSettings: React.FC<MetronomeSettingsProps> = ({
     micGain,
     onMicGainChange,
     micThreshold,
-    onMicThresholdChange
+    onMicThresholdChange,
+    onRunMicCalibration,
+    isMicCalibrating
 }) => {
     const [subdivision, setSub] = useState<Subdivision>(1);
     const [gapEnabled, setGapEnabled] = useState(false);
@@ -196,7 +200,24 @@ export const MetronomeSettings: React.FC<MetronomeSettingsProps> = ({
 
                     {/* Microphone Settings */}
                     <div>
-                        <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.8rem', color: 'var(--color-text-dim)' }}>Microphone Settings</label>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                            <label style={{ fontSize: '0.8rem', color: 'var(--color-text-dim)' }}>Microphone Settings</label>
+                            <button
+                                onClick={onRunMicCalibration}
+                                disabled={isMicCalibrating}
+                                style={{
+                                    fontSize: '0.7rem',
+                                    padding: '2px 8px',
+                                    background: isMicCalibrating ? 'gray' : 'var(--color-primary)',
+                                    color: '#fff',
+                                    border: 'none',
+                                    borderRadius: '4px',
+                                    cursor: isMicCalibrating ? 'wait' : 'pointer'
+                                }}
+                            >
+                                Auto Set
+                            </button>
+                        </div>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
                             <div>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', color: 'var(--color-text-dim)', marginBottom: '2px' }}>

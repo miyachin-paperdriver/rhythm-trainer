@@ -194,6 +194,41 @@ export const MetronomeSettings: React.FC<MetronomeSettingsProps> = ({
                         {isCalibrating && <div style={{ fontSize: '0.7rem', color: 'var(--color-accent)', marginTop: '4px' }}>Outputting click... Please wait.</div>}
                     </div>
 
+                    {/* Microphone Settings */}
+                    <div>
+                        <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.8rem', color: 'var(--color-text-dim)' }}>Microphone Settings</label>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
+                            <div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', color: 'var(--color-text-dim)', marginBottom: '2px' }}>
+                                    <span>Gain</span>
+                                    <span>{micGain.toFixed(1)}x</span>
+                                </div>
+                                <input
+                                    type="range"
+                                    min="1.0" max="10.0" step="0.1"
+                                    value={micGain}
+                                    onChange={e => onMicGainChange(parseFloat(e.target.value))}
+                                    style={{ width: '100%', accentColor: 'var(--color-primary)' }}
+                                />
+                            </div>
+                            <div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', color: 'var(--color-text-dim)', marginBottom: '2px' }}>
+                                    <span>Sensitivity (Threshold: {micThreshold.toFixed(2)})</span>
+                                </div>
+                                <input
+                                    type="range"
+                                    min="0.01" max="0.5" step="0.01"
+                                    value={micThreshold}
+                                    onChange={e => onMicThresholdChange(parseFloat(e.target.value))}
+                                    style={{ width: '100%', accentColor: 'var(--color-primary)' }}
+                                />
+                                <div style={{ fontSize: '0.65rem', color: '#888', marginTop: '2px' }}>
+                                    Lower is more sensitive. Increase if too noisy.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     {/* Theme */}
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <label style={{ fontSize: '0.8rem', color: 'var(--color-text-dim)' }}>Theme</label>

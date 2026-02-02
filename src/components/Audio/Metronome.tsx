@@ -816,48 +816,277 @@ export const Metronome: React.FC = () => {
                 </button>
             </div>
 
-            {activeTab === 'training' && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', maxWidth: '100%', overflowX: 'hidden', padding: '0 1rem', position: 'relative' }}>
-                    {micCalibState.active && (
-                        <div style={{
-                            position: 'absolute',
-                            top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
-                            background: 'rgba(0,0,0,0.85)',
-                            color: '#fff',
-                            padding: '1.5rem',
-                            borderRadius: '1rem',
-                            fontWeight: 'bold',
-                            fontSize: '1rem',
-                            zIndex: 110,
-                            textAlign: 'center',
-                            width: '80%',
-                            backdropFilter: 'blur(4px)',
-                            border: '1px solid var(--color-primary)'
-                        }}>
-                            <div style={{ marginBottom: '1rem', fontSize: '1.2rem', color: 'var(--color-primary)' }}>
-                                Mic Calibration
-                            </div>
-                            <div style={{ marginBottom: '1.5rem' }}>
-                                {micCalibState.message}
-                            </div>
-                            {micCalibState.step === 'finished' ? (
-                                <div style={{ color: 'var(--color-success)' }}>Updated!</div>
-                            ) : (
+            {/* Global Calibration Overlays - Visible across all tabs */}
+            {(calibrationState.active || micCalibState.active) && (
+                <div style={{
+                    position: 'fixed',
+                    top: 0, left: 0, right: 0, bottom: 0,
+                    background: 'rgba(0,0,0,0.7)',
+                    zIndex: 1000,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    backdropFilter: 'blur(4px)'
+                }}>
+                    <div style={{
+                        background: 'var(--color-surface)',
+                        borderRadius: '1rem',
+                        padding: '1.5rem',
+                        width: '90%',
+                        maxWidth: '360px',
+                        boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
+                        border: '2px solid var(--color-primary)'
+                    }}>
+                        {/* Latency Calibration UI */}
+                        {calibrationState.active && (
+                            <>
+                                <div style={{
+                                    fontSize: '1.2rem',
+                                    fontWeight: 'bold',
+                                    color: 'var(--color-primary)',
+                                    marginBottom: '1rem',
+                                    textAlign: 'center'
+                                }}>
+                                    {t('calibration.latency_title')}
+                                </div>
+
+                                {/* Step indicator */}
+                                <div style={{
+                                    background: 'var(--color-surface-hover)',
+                                    borderRadius: '0.5rem',
+                                    padding: '1rem',
+                                    marginBottom: '1rem'
+                                }}>
+                                    <div style={{
+                                        fontSize: '1.1rem',
+                                        fontWeight: 'bold',
+                                        marginBottom: '0.5rem',
+                                        color: 'var(--color-text)'
+                                    }}>
+                                        {t('calibration.step_of')} {calibrationState.count + 1}/5
+                                    </div>
+                                    <div style={{
+                                        fontSize: '0.95rem',
+                                        color: 'var(--color-text-dim)'
+                                    }}>
+                                        {calibrationState.status === 'waiting_mic' && t('calibration.latency_step_prep')}
+                                        {calibrationState.status === 'warmup' && t('calibration.latency_step_warmup')}
+                                        {(calibrationState.status === 'starting' || calibrationState.status === 'listening') && t('calibration.latency_step_listen')}
+                                    </div>
+                                </div>
+
+                                {/* Tip */}
+                                <div style={{
+                                    background: 'rgba(250, 173, 20, 0.15)',
+                                    border: '1px solid rgba(250, 173, 20, 0.3)',
+                                    borderRadius: '0.5rem',
+                                    padding: '0.75rem',
+                                    marginBottom: '1rem',
+                                    fontSize: '0.9rem',
+                                    color: '#faad14',
+                                    textAlign: 'center'
+                                }}>
+                                    {t('calibration.latency_tip')}
+                                </div>
+
+                                {/* Progress bar */}
+                                <div style={{
+                                    width: '100%',
+                                    height: '8px',
+                                    background: 'var(--color-border)',
+                                    borderRadius: '4px',
+                                    marginBottom: '1rem',
+                                    overflow: 'hidden'
+                                }}>
+                                    <div style={{
+                                        width: `${((calibrationState.count + 1) / 5) * 100}%`,
+                                        height: '100%',
+                                        background: 'var(--color-primary)',
+                                        transition: 'width 0.3s ease'
+                                    }} />
+                                </div>
+
+                                {/* Debug log (collapsible) */}
+                                {debugLog.length > 0 && (
+                                    <details style={{ marginBottom: '1rem' }}>
+                                        <summary style={{ fontSize: '0.8rem', color: 'var(--color-text-dim)', cursor: 'pointer' }}>
+                                            Debug Log
+                                        </summary>
+                                        <div style={{
+                                            fontSize: '0.75rem',
+                                            color: '#aaa',
+                                            background: 'rgba(0,0,0,0.3)',
+                                            padding: '0.5rem',
+                                            borderRadius: '4px',
+                                            marginTop: '0.5rem',
+                                            maxHeight: '100px',
+                                            overflowY: 'auto'
+                                        }}>
+                                            {debugLog.map((l, i) => <div key={i}>{l}</div>)}
+                                        </div>
+                                    </details>
+                                )}
+
                                 <button
-                                    onClick={cancelMicCalibration}
+                                    onClick={abortCalibration}
                                     style={{
-                                        padding: '0.5rem 1rem',
-                                        background: '#444',
-                                        border: 'none',
-                                        color: '#fff',
-                                        borderRadius: '4px'
+                                        width: '100%',
+                                        padding: '0.75rem',
+                                        background: 'var(--color-surface-hover)',
+                                        border: '1px solid var(--color-border)',
+                                        borderRadius: '0.5rem',
+                                        color: 'var(--color-text)',
+                                        fontWeight: 'bold',
+                                        cursor: 'pointer'
                                     }}
                                 >
-                                    Cancel
+                                    {t('calibration.cancel')}
                                 </button>
-                            )}
-                        </div>
-                    )}
+                            </>
+                        )}
+
+                        {/* Mic Calibration UI */}
+                        {micCalibState.active && (
+                            <>
+                                <div style={{
+                                    fontSize: '1.2rem',
+                                    fontWeight: 'bold',
+                                    color: 'var(--color-primary)',
+                                    marginBottom: '1rem',
+                                    textAlign: 'center'
+                                }}>
+                                    {t('calibration.mic_title')}
+                                </div>
+
+                                {/* Step indicator */}
+                                <div style={{
+                                    background: 'var(--color-surface-hover)',
+                                    borderRadius: '0.5rem',
+                                    padding: '1rem',
+                                    marginBottom: '1rem'
+                                }}>
+                                    <div style={{
+                                        fontSize: '1.1rem',
+                                        fontWeight: 'bold',
+                                        marginBottom: '0.5rem',
+                                        color: 'var(--color-text)'
+                                    }}>
+                                        {t('calibration.step_of')} {
+                                            micCalibState.step === 'noise' ? '1/4' :
+                                                micCalibState.step === 'bleed' ? '2/4' :
+                                                    micCalibState.step === 'signal' ? '3/4' :
+                                                        micCalibState.step === 'finished' ? '4/4' : '1/4'
+                                        }
+                                    </div>
+                                    <div style={{
+                                        fontSize: '0.95rem',
+                                        color: 'var(--color-text-dim)'
+                                    }}>
+                                        {micCalibState.step === 'noise' && t('calibration.mic_step_noise')}
+                                        {micCalibState.step === 'bleed' && t('calibration.mic_step_bleed')}
+                                        {micCalibState.step === 'signal' && t('calibration.mic_step_signal')}
+                                        {micCalibState.step === 'finished' && t('calibration.mic_step_done')}
+                                    </div>
+
+                                    {/* Hit counter for signal step */}
+                                    {micCalibState.step === 'signal' && (
+                                        <div style={{
+                                            marginTop: '0.75rem',
+                                            fontSize: '1.5rem',
+                                            fontWeight: 'bold',
+                                            color: 'var(--color-primary)'
+                                        }}>
+                                            {micCalibState.hitCount}/5
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Tip based on step */}
+                                {micCalibState.step !== 'finished' && (
+                                    <div style={{
+                                        background: micCalibState.step === 'signal'
+                                            ? 'rgba(82, 196, 26, 0.15)'
+                                            : 'rgba(250, 173, 20, 0.15)',
+                                        border: micCalibState.step === 'signal'
+                                            ? '1px solid rgba(82, 196, 26, 0.3)'
+                                            : '1px solid rgba(250, 173, 20, 0.3)',
+                                        borderRadius: '0.5rem',
+                                        padding: '0.75rem',
+                                        marginBottom: '1rem',
+                                        fontSize: '0.9rem',
+                                        color: micCalibState.step === 'signal' ? '#52c41a' : '#faad14',
+                                        textAlign: 'center'
+                                    }}>
+                                        {micCalibState.step === 'signal'
+                                            ? t('calibration.mic_hit_tip')
+                                            : t('calibration.mic_noise_tip')}
+                                    </div>
+                                )}
+
+                                {/* Success message */}
+                                {micCalibState.step === 'finished' && (
+                                    <div style={{
+                                        background: 'rgba(82, 196, 26, 0.15)',
+                                        border: '1px solid rgba(82, 196, 26, 0.3)',
+                                        borderRadius: '0.5rem',
+                                        padding: '0.75rem',
+                                        marginBottom: '1rem',
+                                        fontSize: '0.9rem',
+                                        color: '#52c41a',
+                                        textAlign: 'center'
+                                    }}>
+                                        ✅ {micCalibState.message}
+                                    </div>
+                                )}
+
+                                {/* Progress bar */}
+                                <div style={{
+                                    width: '100%',
+                                    height: '8px',
+                                    background: 'var(--color-border)',
+                                    borderRadius: '4px',
+                                    marginBottom: '1rem',
+                                    overflow: 'hidden'
+                                }}>
+                                    <div style={{
+                                        width: `${micCalibState.step === 'noise' ? 25 :
+                                                micCalibState.step === 'bleed' ? 50 :
+                                                    micCalibState.step === 'signal' ? 75 :
+                                                        micCalibState.step === 'finished' ? 100 : 25
+                                            }%`,
+                                        height: '100%',
+                                        background: micCalibState.step === 'finished'
+                                            ? '#52c41a'
+                                            : 'var(--color-primary)',
+                                        transition: 'width 0.3s ease'
+                                    }} />
+                                </div>
+
+                                {micCalibState.step !== 'finished' && (
+                                    <button
+                                        onClick={cancelMicCalibration}
+                                        style={{
+                                            width: '100%',
+                                            padding: '0.75rem',
+                                            background: 'var(--color-surface-hover)',
+                                            border: '1px solid var(--color-border)',
+                                            borderRadius: '0.5rem',
+                                            color: 'var(--color-text)',
+                                            fontWeight: 'bold',
+                                            cursor: 'pointer'
+                                        }}
+                                    >
+                                        {t('calibration.cancel')}
+                                    </button>
+                                )}
+                            </>
+                        )}
+                    </div>
+                </div>
+            )}
+
+            {activeTab === 'training' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', maxWidth: '100%', overflowX: 'hidden', padding: '0 1rem', position: 'relative' }}>
 
                     {/* 1. Pattern Select */}
                     <div>
@@ -905,66 +1134,9 @@ export const Metronome: React.FC = () => {
                                 COUNT IN
                             </div>
                         )}
-                        {isCalibrating && (
-                            <div style={{
-                                position: 'absolute',
-                                top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
-                                background: 'rgba(0,0,0,0.8)',
-                                color: 'var(--color-accent)',
-                                padding: '1rem',
-                                borderRadius: '1rem',
-                                fontWeight: 'bold',
-                                fontSize: '1rem',
-                                zIndex: 100,
-                                pointerEvents: 'auto',
-                                display: 'flex',
-                                flexDirection: 'column',
-                                alignItems: 'center',
-                                gap: '0.5rem',
-                                backdropFilter: 'blur(4px)'
-                            }}>
-                                <div>Calibrating... {calibrationState.count + 1}/5</div>
-                                <div style={{ fontSize: '0.85rem', opacity: 0.8 }}>
-                                    {calibrationState.status === 'starting' || calibrationState.status === 'listening' ? 'Listening...' : (calibrationState.status === 'warmup' ? 'Warming up...' : 'Waiting for Mic...')}
-                                </div>
-                                <button
-                                    onClick={abortCalibration}
-                                    style={{
-                                        fontSize: '0.85rem',
-                                        padding: '0.3rem 0.6rem',
-                                        background: '#333',
-                                        border: '1px solid #666',
-                                        borderRadius: '4px',
-                                        color: '#fff',
-                                        cursor: 'pointer'
-                                    }}
-                                >
-                                    Cancel
-                                </button>
-                                <div style={{
-                                    marginTop: '4px',
-                                    fontSize: '0.85rem',
-                                    color: '#faad14',
-                                    textAlign: 'center',
-                                    lineHeight: '1.2'
-                                }}>
-                                    💡 If detection fails, cup your hand around the speaker/mic to reflect sound.
-                                </div>
-                                <div style={{
-                                    marginTop: '4px',
-                                    fontSize: '0.85rem',
-                                    color: '#aaa',
-                                    textAlign: 'left',
-                                    width: '100%',
-                                    background: 'rgba(0,0,0,0.5)',
-                                    padding: '4px'
-                                }}>
-                                    {debugLog.map((l, i) => <div key={i}>{l}</div>)}
-                                </div>
-                            </div>
-                        )}
 
                     </div>
+
 
                     {/* Feedback Display (Gauge) */}
                     <div style={{ height: '50px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', marginBottom: '0.5rem' }}>

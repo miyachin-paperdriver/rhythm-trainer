@@ -51,5 +51,24 @@
         "visualizer_desc": "Green = Perfect. Orange = Early/Late. Red = Miss/Poor.",
         "history_title": "History",
         "history_desc": "Check past stats to analyze stability and rushing/dragging tendencies."
+    },
+    "calibration": {
+        "latency_title": "Latency Calibration",
+        "latency_step_prep": "Preparing mic...",
+        "latency_step_warmup": "Warming up...",
+        "latency_step_listen": "Detecting sound...",
+        "latency_tip": "🔊 Turn up the speaker volume",
+        "latency_done": "Done! Latency:",
+        "mic_title": "Mic Calibration",
+        "mic_step_noise": "Measuring noise...",
+        "mic_step_bleed": "Measuring click bleed...",
+        "mic_step_signal": "Hit the pad!",
+        "mic_step_done": "Done! Settings updated.",
+        "mic_noise_tip": "🤫 Please stay quiet",
+        "mic_hit_tip": "🥁 Hit 5 times",
+        "mic_error_no_signal": "No signal detected. Try increasing Gain.",
+        "mic_error_bleed": "Click sound is louder than pad. Move mic closer or reduce speaker volume.",
+        "cancel": "Cancel",
+        "step_of": "Step"
     }
 }

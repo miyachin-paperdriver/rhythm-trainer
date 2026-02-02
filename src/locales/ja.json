@@ -51,5 +51,24 @@
         "visualizer_desc": "緑=Perfect, オレンジ=Early/Late, 赤=Miss",
         "history_title": "履歴",
         "history_desc": "過去のセッションを確認し、リズムの安定性や走る/モタる癖を分析できます。"
+    },
+    "calibration": {
+        "latency_title": "遅延測定",
+        "latency_step_prep": "マイク準備中...",
+        "latency_step_warmup": "準備中...",
+        "latency_step_listen": "音を検出中...",
+        "latency_tip": "🔊 スピーカーの音量を上げてください",
+        "latency_done": "完了！遅延:",
+        "mic_title": "マイク調整",
+        "mic_step_noise": "ノイズ測定中...",
+        "mic_step_bleed": "クリック音を測定中...",
+        "mic_step_signal": "パッドを叩いてください！",
+        "mic_step_done": "完了！設定が更新されました",
+        "mic_noise_tip": "🤫 静かにお待ちください",
+        "mic_hit_tip": "🥁 5回叩いてください",
+        "mic_error_no_signal": "信号が検出できませんでした。Gainを上げてください。",
+        "mic_error_bleed": "クリック音がパッド音より大きいです。マイクをパッドに近づけるか、スピーカー音量を下げてください。",
+        "cancel": "キャンセル",
+        "step_of": "ステップ"
     }
 }

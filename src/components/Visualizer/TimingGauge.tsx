@@ -2,7 +2,7 @@ import React from 'react';
 
 interface TimingGaugeProps {
     offsetMs: number;
-    feedback: string;
+    feedback: string | null;
 }
 
 export const TimingGauge: React.FC<TimingGaugeProps> = ({ offsetMs, feedback }) => {

@@ -59,7 +59,7 @@ export const ManualHelper: React.FC = () => {
                         onClick={handleInstallClick}
                         style={{
                             background: 'var(--color-primary)',
-                            color: '#000',
+                            color: '#fff',
                             border: 'none',
                             padding: '0.6rem 1.2rem',
                             borderRadius: '4px',

@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useTranslation } from 'react-i18next';
 
 interface MetronomeSettingsProps {
+    currentTheme: 'light' | 'dark'; // Controlled state
     onThemeChange: (theme: 'light' | 'dark') => void;
 
     // Latency Calibration
@@ -22,6 +23,7 @@ interface MetronomeSettingsProps {
 }
 
 export const MetronomeSettings: React.FC<MetronomeSettingsProps> = ({
+    currentTheme,
     onThemeChange,
     audioLatency,
     onAudioLatencyChange,
@@ -35,11 +37,10 @@ export const MetronomeSettings: React.FC<MetronomeSettingsProps> = ({
     isMicCalibrating
 }) => {
     const { t, i18n } = useTranslation();
-    const [theme, setTheme] = useState<'light' | 'dark'>('light');
+    // Removed local theme state
 
     const toggleTheme = () => {
-        const next = theme === 'dark' ? 'light' : 'dark';
-        setTheme(next);
+        const next = currentTheme === 'dark' ? 'light' : 'dark';
         onThemeChange(next);
     };
 
@@ -195,7 +196,7 @@ export const MetronomeSettings: React.FC<MetronomeSettingsProps> = ({
                         padding: '6px 16px',
                         transition: 'all 0.2s'
                     }}>
-                        {theme === 'dark' ? t('settings.dark') : t('settings.light')}
+                        {currentTheme === 'dark' ? t('settings.dark') : t('settings.light')}
                     </button>
                 </div>
 

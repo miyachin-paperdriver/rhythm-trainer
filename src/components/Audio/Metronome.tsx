@@ -20,7 +20,15 @@ import { PATTERNS } from '../../utils/patterns';
 export const Metronome: React.FC = () => {
     const { t } = useTranslation();
     // ---- State ----
-    const [activeTab, setActiveTab] = useState<'training' | 'history' | 'editor' | 'manual' | 'settings'>('training');
+    const [activeTab, setActiveTab] = useState<'training' | 'history' | 'editor' | 'manual' | 'settings'>(() => {
+        const hasLaunched = localStorage.getItem('hasLaunched');
+        if (!hasLaunched) {
+            localStorage.setItem('hasLaunched', 'true');
+            return 'manual';
+        }
+        return 'training';
+    });
+
     const [selectedPatternId, setSelectedPatternId] = useState(PATTERNS[2].id);
     const selectedPattern = PATTERNS.find(p => p.id === selectedPatternId) || PATTERNS[0];
     const [disableRecording, setDisableRecording] = useState(false);
@@ -60,6 +68,16 @@ export const Metronome: React.FC = () => {
         console.log(msg);
         setDebugLog(prev => [...prev.slice(-4), msg]); // Keep last 5
     };
+
+    // Theme State
+    const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+        return (localStorage.getItem('theme') as 'light' | 'dark') || 'light';
+    });
+
+    useEffect(() => {
+        document.documentElement.setAttribute('data-theme', theme);
+        localStorage.setItem('theme', theme);
+    }, [theme]);
 
     // Beat History for Visualizer
     const [beatHistory, setBeatHistory] = useState<number[]>([]);
@@ -758,9 +776,9 @@ export const Metronome: React.FC = () => {
         }
     }, [isPlaying, isMicReady, mediaStream, disableRecording, audioContext, startAnalysis, startRecording]);
 
-    // Theme Handler
-    const handleThemeChange = (theme: 'light' | 'dark') => {
-        document.documentElement.setAttribute('data-theme', theme);
+    // Theme Handler (Updated to use state)
+    const handleThemeChange = (newTheme: 'light' | 'dark') => {
+        setTheme(newTheme);
     };
 
     // ---- Render ----
@@ -1171,14 +1189,14 @@ export const Metronome: React.FC = () => {
 
                     {/* Feedback Display (Gauge) */}
                     <div style={{ height: '50px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', marginBottom: '0.5rem' }}>
-                        {feedback ? (
-                            <>
-                                <TimingGauge offsetMs={offsetMs} feedback={feedback} />
-                                <div style={{ fontSize: '0.8rem', fontWeight: 'bold', color: feedback === 'Perfect' ? 'var(--color-success)' : feedback === 'Good' ? 'var(--color-accent)' : 'var(--color-error)', marginTop: '2px' }}>
+                        <TimingGauge offsetMs={offsetMs} feedback={feedback} />
+                        <div style={{ height: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            {feedback && (
+                                <div style={{ fontSize: '0.8rem', fontWeight: 'bold', color: feedback === 'Perfect' ? 'var(--color-success)' : feedback === 'Good' ? 'var(--color-accent)' : 'var(--color-error)' }}>
                                     {Math.round(Math.abs(offsetMs))}ms
                                 </div>
-                            </>
-                        ) : <div style={{ height: '24px' }}></div>}
+                            )}
+                        </div>
                     </div>
 
                     {/* 2. Unified Control Panel (Start/Stop + Tempo) */}
@@ -1469,6 +1487,7 @@ export const Metronome: React.FC = () => {
             {activeTab === 'settings' && (
                 <div style={{ height: 'calc(100vh - 160px)', padding: '0 1rem' }}>
                     <MetronomeSettings
+                        currentTheme={theme}
                         onThemeChange={handleThemeChange}
                         audioLatency={audioLatency}
                         onAudioLatencyChange={setAudioLatency}

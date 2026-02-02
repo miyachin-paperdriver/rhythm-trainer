@@ -14,15 +14,28 @@ import { WaveformVisualizer } from '../Audio/WaveformVisualizer';
 import { HistoryView } from '../Analysis/HistoryView';
 import { TimingGauge } from '../Visualizer/TimingGauge';
 import { ManualHelper } from '../Manual/ManualHelper';
+import { PatternManager } from '../Editor/PatternManager';
 import { PATTERNS } from '../../utils/patterns';
 
 export const Metronome: React.FC = () => {
     const { t } = useTranslation();
     // ---- State ----
-    const [activeTab, setActiveTab] = useState<'training' | 'history' | 'manual' | 'settings'>('training');
+    const [activeTab, setActiveTab] = useState<'training' | 'history' | 'editor' | 'manual' | 'settings'>('training');
     const [selectedPatternId, setSelectedPatternId] = useState(PATTERNS[2].id);
     const selectedPattern = PATTERNS.find(p => p.id === selectedPatternId) || PATTERNS[0];
     const [disableRecording, setDisableRecording] = useState(false);
+    const [editorIsDirty, setEditorIsDirty] = useState(false);
+
+    // タブ変更（未保存確認付き）
+    const handleTabChange = (tab: typeof activeTab) => {
+        if (activeTab === 'editor' && editorIsDirty) {
+            if (!confirm('保存されていない変更があります。破棄しますか？')) {
+                return;
+            }
+            setEditorIsDirty(false);
+        }
+        setActiveTab(tab);
+    };
 
 
     // Tempo / Rhythm Settings State
@@ -755,12 +768,12 @@ export const Metronome: React.FC = () => {
         <section className="metronome-container" style={{ padding: '1rem 0', width: '100%', boxSizing: 'border-box', margin: '0 auto' }}>
 
             {/* Tabs */}
-            <div style={{ display: 'flex', marginBottom: '1rem', borderBottom: '1px solid var(--color-surface-hover)', padding: '0 0.5rem', gap: '4px' }}>
+            <div style={{ display: 'flex', marginBottom: '1rem', borderBottom: '1px solid var(--color-surface-hover)', padding: '0 0.5rem', gap: '2px' }}>
                 {/* Main Tabs */}
                 {['training', 'history'].map(tab => (
                     <button
                         key={tab}
-                        onClick={() => setActiveTab(tab as any)}
+                        onClick={() => handleTabChange(tab as any)}
                         style={{
                             flex: 1,
                             padding: '0.8rem 0.5rem',
@@ -772,47 +785,65 @@ export const Metronome: React.FC = () => {
                             textTransform: 'capitalize',
                             fontSize: '1rem',
                             transition: 'all 0.2s',
-                            cursor: 'pointer'
+                            cursor: 'pointer',
+                            whiteSpace: 'nowrap'
                         }}
                     >
                         {t(`tabs.${tab}`)}
                     </button>
                 ))}
 
-                {/* Secondary Tabs (Small) */}
+                {/* Secondary Tabs (Small Icons) */}
                 <button
-                    onClick={() => setActiveTab('manual')}
+                    onClick={() => handleTabChange('manual')}
                     style={{
-                        padding: '0.8rem 1rem',
+                        padding: '0.8rem 0.5rem',
                         border: 'none',
                         background: 'transparent',
                         color: activeTab === 'manual' ? 'var(--color-primary)' : 'var(--color-text-dim)',
                         borderBottom: activeTab === 'manual' ? '3px solid var(--color-primary)' : '3px solid transparent',
                         fontWeight: 'bold',
-                        fontSize: '1.2rem',
+                        fontSize: '1.1rem',
                         cursor: 'pointer',
-                        minWidth: '50px'
+                        minWidth: '36px'
                     }}
                     title="Manual"
                 >
                     ?
                 </button>
                 <button
-                    onClick={() => setActiveTab('settings')}
+                    onClick={() => handleTabChange('settings')}
                     style={{
-                        padding: '0.8rem 1rem',
+                        padding: '0.8rem 0.5rem',
                         border: 'none',
                         background: 'transparent',
                         color: activeTab === 'settings' ? 'var(--color-primary)' : 'var(--color-text-dim)',
                         borderBottom: activeTab === 'settings' ? '3px solid var(--color-primary)' : '3px solid transparent',
                         fontWeight: 'bold',
-                        fontSize: '1.2rem',
+                        fontSize: '1.1rem',
                         cursor: 'pointer',
-                        minWidth: '50px'
+                        minWidth: '36px'
                     }}
                     title="Settings"
                 >
-                    ⚙️
+                    ⚙
+                </button>
+                <button
+                    onClick={() => handleTabChange('editor')}
+                    style={{
+                        padding: '0.8rem 0.5rem',
+                        border: 'none',
+                        background: 'transparent',
+                        color: activeTab === 'editor' ? 'var(--color-primary)' : 'var(--color-text-dim)',
+                        borderBottom: activeTab === 'editor' ? '3px solid var(--color-primary)' : '3px solid transparent',
+                        fontWeight: 'bold',
+                        fontSize: '1.2rem',
+                        cursor: 'pointer',
+                        minWidth: '36px'
+                    }}
+                    title="Pattern Editor"
+                >
+                    <span style={{ display: 'inline-block', transform: 'scaleX(-1)' }}>✎</span>
                 </button>
             </div>
 
@@ -1050,9 +1081,9 @@ export const Metronome: React.FC = () => {
                                 }}>
                                     <div style={{
                                         width: `${micCalibState.step === 'noise' ? 25 :
-                                                micCalibState.step === 'bleed' ? 50 :
-                                                    micCalibState.step === 'signal' ? 75 :
-                                                        micCalibState.step === 'finished' ? 100 : 25
+                                            micCalibState.step === 'bleed' ? 50 :
+                                                micCalibState.step === 'signal' ? 75 :
+                                                    micCalibState.step === 'finished' ? 100 : 25
                                             }%`,
                                         height: '100%',
                                         background: micCalibState.step === 'finished'
@@ -1423,6 +1454,12 @@ export const Metronome: React.FC = () => {
 
             {activeTab === 'history' && (
                 <HistoryView />
+            )}
+
+            {activeTab === 'editor' && (
+                <div style={{ height: 'calc(100vh - 160px)', overflowY: 'auto' }}>
+                    <PatternManager onDirtyChange={setEditorIsDirty} />
+                </div>
             )}
 
             {activeTab === 'manual' && (

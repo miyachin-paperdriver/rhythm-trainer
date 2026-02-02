@@ -23,7 +23,9 @@ function App() {
         right: '1rem',
         fontSize: '0.85rem',
         color: 'var(--color-text-dim)',
-        opacity: 0.5
+        opacity: 0.5,
+        pointerEvents: 'none',
+        zIndex: 1000
       }}>
         v{__APP_VERSION__}
       </footer>

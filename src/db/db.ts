@@ -1,8 +1,10 @@
 import Dexie, { type Table } from 'dexie';
+import type { MeasureData } from '../utils/patterns';
 
 export class RhythmTrainerDB extends Dexie {
     sessions!: Table<TrainingSession>;
     session_details!: Table<SessionDetail>;
+    custom_patterns!: Table<CustomPattern>;
 
     constructor() {
         super('RhythmTrainerDB');
@@ -16,7 +18,21 @@ export class RhythmTrainerDB extends Dexie {
         this.version(2).stores({
             session_details: '++id, sessionId'
         });
+
+        // Version 3: Add custom patterns storage
+        this.version(3).stores({
+            custom_patterns: '++id, name, createdAt'
+        });
     }
+}
+
+// カスタムパターン
+export interface CustomPattern {
+    id?: number;
+    name: string;
+    measures: MeasureData[];
+    createdAt: Date;
+    updatedAt: Date;
 }
 
 // Breakdown stats for a subset (L/R) or total
@@ -65,3 +81,4 @@ export interface TrainingSession {
 }
 
 export const db = new RhythmTrainerDB();
+

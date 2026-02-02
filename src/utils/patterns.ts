@@ -1,4 +1,26 @@
 export type Hand = 'R' | 'L';
+export type Note = 'R' | 'L' | '-';  // '-' = 休符
+export type Subdivision = 1 | 2 | 3 | 4; // 1=Quarter, 2=8th, 3=Triplet, 4=16th
+
+// 小節のデータ構造
+export interface MeasureData {
+    subdivision: Subdivision;
+    notes: Note[];  // 配列長 = 4 * subdivision
+}
+
+// 拡張パターン型（プリセット・カスタム両対応）
+export interface ExtendedPattern {
+    id: string;
+    name: string;
+    isPreset: boolean;
+    // 従来形式（プリセット互換）
+    sequence?: Hand[];
+    // 拡張形式（カスタムパターン用）
+    measures?: MeasureData[];
+    createdAt?: Date;
+    updatedAt?: Date;
+}
+
 export type Pattern = {
     id: string;
     name: string;
@@ -32,3 +54,32 @@ export const PATTERNS: Pattern[] = [
         sequence: ['R', 'L', 'R', 'R', 'L', 'L']
     }
 ];
+
+// プリセットをExtendedPattern形式に変換
+export const PRESET_PATTERNS: ExtendedPattern[] = PATTERNS.map(p => ({
+    ...p,
+    isPreset: true
+}));
+
+// ヘルパー関数: PatternからMeasureData配列に変換
+export function patternToMeasures(pattern: Pattern, subdivision: Subdivision = 1): MeasureData[] {
+    const notesPerMeasure = 4 * subdivision;
+    const totalNotes = pattern.sequence.length;
+    const measureCount = Math.ceil(totalNotes / notesPerMeasure);
+
+    const measures: MeasureData[] = [];
+    for (let i = 0; i < measureCount; i++) {
+        const notes: Note[] = [];
+        for (let j = 0; j < notesPerMeasure; j++) {
+            const idx = i * notesPerMeasure + j;
+            notes.push(pattern.sequence[idx % totalNotes] as Note);
+        }
+        measures.push({ subdivision, notes });
+    }
+    return measures;
+}
+
+// ヘルパー関数: MeasureData配列からシーケンス（R/L/-）を取得
+export function measuresToSequence(measures: MeasureData[]): Note[] {
+    return measures.flatMap(m => m.notes);
+}

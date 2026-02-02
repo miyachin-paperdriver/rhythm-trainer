@@ -15,6 +15,8 @@ import { HistoryView } from '../Analysis/HistoryView';
 import { TimingGauge } from '../Visualizer/TimingGauge';
 import { ManualHelper } from '../Manual/ManualHelper';
 import { PATTERNS } from '../../utils/patterns';
+import { useSilentModeDetection } from '../../hooks/useSilentModeDetection';
+import { Toast } from '../UI/Toast';
 
 export const Metronome: React.FC = () => {
     const { t } = useTranslation();
@@ -71,6 +73,10 @@ export const Metronome: React.FC = () => {
         audioContext,
         initializeAudio
     } = useMetronome();
+
+    // iOS Silent Mode Detection
+    const { isIOSDevice, dismissWarning, state: silentModeState } = useSilentModeDetection();
+    const [showSilentWarning, setShowSilentWarning] = useState(false);
 
     const { isMicReady, startAnalysis, stopAnalysis, clearOnsets, onsets, mediaStream, analyzer } = useAudioAnalysis({
         audioContext,
@@ -716,6 +722,10 @@ export const Metronome: React.FC = () => {
             }
 
             // Only reach here if Mic is ready (or disabled)
+            // Show iOS Silent Mode warning if not dismissed
+            if (isIOSDevice && !silentModeState.dismissed) {
+                setShowSilentWarning(true);
+            }
             start();
         }
     };
@@ -753,6 +763,19 @@ export const Metronome: React.FC = () => {
     // ---- Render ----
     return (
         <section className="metronome-container" style={{ padding: '1rem 0', width: '100%', boxSizing: 'border-box', margin: '0 auto' }}>
+
+            {/* Silent Mode Warning Toast */}
+            <Toast
+                message={t('toast.silent_mode_warning')}
+                type="warning"
+                visible={showSilentWarning}
+                onDismiss={() => {
+                    setShowSilentWarning(false);
+                    dismissWarning();
+                }}
+                autoDismiss={true}
+                autoDismissMs={8000}
+            />
 
             {/* Tabs */}
             <div style={{ display: 'flex', marginBottom: '1rem', borderBottom: '1px solid var(--color-surface-hover)', padding: '0 0.5rem', gap: '4px' }}>
@@ -1050,9 +1073,9 @@ export const Metronome: React.FC = () => {
                                 }}>
                                     <div style={{
                                         width: `${micCalibState.step === 'noise' ? 25 :
-                                                micCalibState.step === 'bleed' ? 50 :
-                                                    micCalibState.step === 'signal' ? 75 :
-                                                        micCalibState.step === 'finished' ? 100 : 25
+                                            micCalibState.step === 'bleed' ? 50 :
+                                                micCalibState.step === 'signal' ? 75 :
+                                                    micCalibState.step === 'finished' ? 100 : 25
                                             }%`,
                                         height: '100%',
                                         background: micCalibState.step === 'finished'

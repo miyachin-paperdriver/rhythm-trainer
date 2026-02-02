@@ -9,8 +9,8 @@ export class AudioAnalyzer {
 
     // Onset detection parameters
     private readonly bufferSize = 2048;
-    private threshold = 0.15; // Default threshold
-    public currentGain = 3.0; // Default 3x gain
+    private threshold = 0.05; // Default lower threshold since we have clean signal
+    public currentGain = 5.0; // Default 5x gain
     private lastOnset: number = 0;
     private minInterOnsetInterval = 0.1; // 100ms debounce
 

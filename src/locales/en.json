@@ -70,8 +70,5 @@
         "mic_error_bleed": "Click sound is louder than pad. Move mic closer or reduce speaker volume.",
         "cancel": "Cancel",
         "step_of": "Step"
-    },
-    "toast": {
-        "silent_mode_warning": "The iPhone Silent Switch may be ON. If you don't hear any sound, please turn OFF the Silent Switch."
     }
 }

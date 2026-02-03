@@ -1,3 +1,4 @@
+import { Analytics } from "@vercel/analytics/react";
 import { Metronome } from './components/Audio/Metronome'
 import { OnsetTestPage } from './components/Test/OnsetTestPage'
 
@@ -6,7 +7,12 @@ function App() {
   const isTest = new URLSearchParams(window.location.search).get('test') === 'onset';
 
   if (isTest) {
-    return <OnsetTestPage />;
+    return (
+      <>
+        <OnsetTestPage />
+        <Analytics />
+      </>
+    );
   }
 
   return (
@@ -29,6 +35,7 @@ function App() {
       }}>
         v{__APP_VERSION__}
       </footer>
+      <Analytics />
     </div>
   )
 }

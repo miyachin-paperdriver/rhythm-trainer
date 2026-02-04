@@ -119,9 +119,13 @@ export const TimingDeviationGraph: React.FC<TimingDeviationGraphProps> = ({ hits
                 />
 
                 {/* Axes Labels */}
-                <text x={10} y={height / 2 + 4} fontSize="10" fill="var(--color-text-dim)">0ms</text>
-                <text x={10} y={padding.top} fontSize="10" fill="var(--color-text-dim)">+{maxDeviation}ms</text>
-                <text x={10} y={height - padding.bottom + 8} fontSize="10" fill="var(--color-text-dim)">-{maxDeviation}ms</text>
+                <text x={5} y={height / 2 + 4} fontSize="10" fill="var(--color-text-dim)">0ms</text>
+                <text x={5} y={padding.top + 10} fontSize="10" fill="var(--color-text-dim)">+{maxDeviation}ms</text>
+                <text x={5} y={height - padding.bottom + 10} fontSize="10" fill="var(--color-text-dim)">-{maxDeviation}ms</text>
+
+                {/* Early/Late Labels - Y軸左側に配置 */}
+                <text x={50} y={padding.top + 10} fontSize="10" fill="#ff4d4f" fontWeight="bold">(Late)</text>
+                <text x={50} y={height - padding.bottom + 10} fontSize="10" fill="#fa8c16" fontWeight="bold">(Early)</text>
 
                 {/* Vertical Step Lines */}
                 {Array.from({ length: patternLength }).map((_, i) => {

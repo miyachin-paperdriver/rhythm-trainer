@@ -4,6 +4,7 @@
   --container-width: 420px;
   --radius-lg: 16px;
   --radius-md: 8px;
+  --radius-sm: 4px;
 
   /* Light Theme Default */
   --color-bg: #f2f2f7;
@@ -74,7 +75,7 @@ input::placeholder {
 
 ::-webkit-scrollbar-thumb {
   background: var(--color-surface-hover);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
 }
 
 #root {
@@ -135,7 +136,7 @@ h1 {
 
 .visualizer-bar {
   border: 1px solid var(--color-border);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   padding: 0.25rem;
   /* Reduced padding */
   background: rgba(0, 0, 0, 0.05);

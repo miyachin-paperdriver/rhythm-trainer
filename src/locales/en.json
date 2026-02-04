@@ -70,5 +70,20 @@
         "mic_error_bleed": "Click sound is louder than pad. Move mic closer or reduce speaker volume.",
         "cancel": "Cancel",
         "step_of": "Step"
+    },
+    "report": {
+        "total": "TOTAL",
+        "left": "LEFT (L)",
+        "right": "RIGHT (R)",
+        "timing_accuracy": "TIMING ACCURACY",
+        "avg": "avg",
+        "stability": "STABILITY (SD)",
+        "tendency": "TENDENCY",
+        "just_right": "Just Right",
+        "rush": "Rush",
+        "drag": "Drag",
+        "hits": "Hits",
+        "pts": "pts",
+        "no_data": "No Data"
     }
 }

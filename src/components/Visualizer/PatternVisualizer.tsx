@@ -116,11 +116,11 @@ export const PatternVisualizer: React.FC<PatternVisualizerProps> = ({ pattern, c
                                             display: 'flex',
                                             alignItems: 'center',
                                             justifyContent: 'center',
-                                            borderRadius: '4px',
+                                            borderRadius: 'var(--radius-sm)',
                                             background: isActive
                                                 ? (isRest ? 'var(--color-surface-hover)' : isRight ? 'var(--color-primary)' : 'var(--color-accent)')
                                                 : isRest ? 'transparent' : 'var(--color-surface-hover)',
-                                            color: isActive ? (isRest ? 'var(--color-text-dim)' : '#000') : (isRest ? 'var(--color-text-dim)' : isRight ? 'var(--color-primary)' : 'var(--color-accent)'),
+                                            color: isActive ? (isRest ? 'var(--color-text-dim)' : '#fff') : (isRest ? 'var(--color-text-dim)' : isRight ? 'var(--color-primary)' : 'var(--color-accent)'),
                                             border: isRest ? '1px dashed var(--color-border)' : 'none',
                                             fontWeight: 'bold',
                                             fontSize: item.subDivision >= 4 ? '0.8rem' : '1rem',

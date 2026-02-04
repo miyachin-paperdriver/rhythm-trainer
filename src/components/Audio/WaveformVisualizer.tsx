@@ -69,8 +69,9 @@ export const WaveformVisualizer: React.FC<WaveformVisualizerProps> = ({
         // Clear
         ctx.clearRect(0, 0, width, height);
 
-        // Draw Background
-        ctx.fillStyle = '#222';
+        // Draw Background - テーマ対応
+        const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+        ctx.fillStyle = isDark ? '#1a1a1a' : '#e8e8e8';
         ctx.fillRect(0, 0, width, height);
 
         // --- Draw Waveform ---
@@ -241,8 +242,8 @@ export const WaveformVisualizer: React.FC<WaveformVisualizerProps> = ({
                 style={{
                     width: '100%',
                     overflowX: 'auto',
-                    background: '#222',
-                    borderRadius: '8px',
+                    background: 'var(--color-surface-hover)',
+                    borderRadius: 'var(--radius-md)',
                     position: 'relative'
                 }}
             >
@@ -264,7 +265,7 @@ export const WaveformVisualizer: React.FC<WaveformVisualizerProps> = ({
                         background: 'rgba(0,0,0,0.8)',
                         color: '#fff',
                         padding: '4px 8px',
-                        borderRadius: '4px',
+                        borderRadius: 'var(--radius-sm)',
                         fontSize: '0.8rem',
                         pointerEvents: 'none',
                         whiteSpace: 'nowrap'
@@ -282,9 +283,9 @@ export const WaveformVisualizer: React.FC<WaveformVisualizerProps> = ({
                     style={{
                         padding: '0.5rem 1rem',
                         background: isPlaying ? 'var(--color-accent)' : 'var(--color-primary)',
-                        color: isPlaying ? '#fff' : '#000',
+                        color: '#fff',
                         border: 'none',
-                        borderRadius: '4px',
+                        borderRadius: 'var(--radius-sm)',
                         fontWeight: 'bold',
                         cursor: 'pointer',
                         minWidth: '140px'

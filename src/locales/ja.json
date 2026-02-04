@@ -70,5 +70,20 @@
         "mic_error_bleed": "クリック音がパッド音より大きいです。マイクをパッドに近づけるか、スピーカー音量を下げてください。",
         "cancel": "キャンセル",
         "step_of": "ステップ"
+    },
+    "report": {
+        "total": "合計",
+        "left": "左手 (L)",
+        "right": "右手 (R)",
+        "timing_accuracy": "タイミング精度",
+        "avg": "平均",
+        "stability": "安定性 (SD)",
+        "tendency": "傾向",
+        "just_right": "良いタイミング",
+        "rush": "走り",
+        "drag": "モタり",
+        "hits": "ヒット数",
+        "pts": "点",
+        "no_data": "データなし"
     }
 }

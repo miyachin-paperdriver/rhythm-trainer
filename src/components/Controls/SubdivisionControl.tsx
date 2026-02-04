@@ -130,7 +130,7 @@ export const SubdivisionControl: React.FC<SubdivisionControlProps> = ({ subdivis
                                 style={{
                                     flex: 1,
                                     padding: '6px',
-                                    borderRadius: '4px',
+                                    borderRadius: 'var(--radius-sm)',
                                     border: 'none',
                                     background: subdivision === opt ? 'var(--color-primary)' : 'transparent',
                                     color: subdivision === opt ? '#fff' : 'var(--color-text)',

@@ -728,6 +728,53 @@ export const Metronome: React.FC = () => {
     // Session Summary Tab State
     const [summaryTab, setSummaryTab] = useState<'total' | 'left' | 'right'>('total');
 
+    // ずれ量表示制御: 表示用のfeedbackとoffsetを管理
+    const [displayFeedback, setDisplayFeedback] = useState<{ feedback: string | null, offsetMs: number }>({ feedback: null, offsetMs: 0 });
+    const displayTimeoutRef = React.useRef<any>(null);
+    const lastBeatTimeRef = React.useRef<number>(0);
+
+    // feedbackが更新されたら表示を更新
+    useEffect(() => {
+        if (feedback) {
+            setDisplayFeedback({ feedback, offsetMs });
+            // 3秒タイムアウトを設定
+            if (displayTimeoutRef.current) clearTimeout(displayTimeoutRef.current);
+            displayTimeoutRef.current = setTimeout(() => {
+                setDisplayFeedback({ feedback: null, offsetMs: 0 });
+            }, 3000);
+        }
+    }, [feedback, offsetMs]);
+
+    // 次の拍で楽器音が検出されなかった場合に消す
+    useEffect(() => {
+        // 新しい拍が来た（lastBeatTimeが変化した）
+        if (lastBeatTime > 0 && lastBeatTime !== lastBeatTimeRef.current) {
+            lastBeatTimeRef.current = lastBeatTime;
+            // 150ms後にonset検出がなければ消す（遅延を考慮）
+            const checkTimeout = setTimeout(() => {
+                // onsetIndexが変化してなければ消す（feedbackが更新されてなければ）
+                // この時点のdisplayFeedbackと比較するため、タイムアウト時のfeedbackをチェック
+                setDisplayFeedback(prev => {
+                    // feedbackが前回のまま（新しい入力がない）なら消す
+                    // 注：feedbackが更新される場合は上のuseEffectで既に更新されているはず
+                    return prev;
+                });
+            }, 150);
+            return () => clearTimeout(checkTimeout);
+        }
+    }, [lastBeatTime]);
+
+    // 停止時に表示をクリア
+    useEffect(() => {
+        if (!isPlaying) {
+            // 停止後3秒でタイムアウト（既存のタイムアウトはそのまま）
+            if (displayTimeoutRef.current) clearTimeout(displayTimeoutRef.current);
+            displayTimeoutRef.current = setTimeout(() => {
+                setDisplayFeedback({ feedback: null, offsetMs: 0 });
+            }, 3000);
+        }
+    }, [isPlaying]);
+
     // Wrappers for settings updates
     const handleSubdivisionChange = (sub: Subdivision) => {
         setSubdivisionState(sub);
@@ -911,7 +958,11 @@ export const Metronome: React.FC = () => {
                     }}
                     title="Settings"
                 >
-                    ⚙
+                    {/* Gear Icon - Bold SVG */}
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <circle cx="12" cy="12" r="3" />
+                        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                    </svg>
                 </button>
                 <button
                     onClick={() => handleTabChange('editor')}
@@ -928,7 +979,10 @@ export const Metronome: React.FC = () => {
                     }}
                     title="Pattern Editor"
                 >
-                    <span style={{ display: 'inline-block', transform: 'scaleX(-1)' }}>✎</span>
+                    {/* Pencil Icon - Bold SVG */}
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
+                    </svg>
                 </button>
             </div>
 
@@ -1010,7 +1064,7 @@ export const Metronome: React.FC = () => {
                                     width: '100%',
                                     height: '8px',
                                     background: 'var(--color-border)',
-                                    borderRadius: '4px',
+                                    borderRadius: 'var(--radius-sm)',
                                     marginBottom: '1rem',
                                     overflow: 'hidden'
                                 }}>
@@ -1033,7 +1087,7 @@ export const Metronome: React.FC = () => {
                                             color: '#aaa',
                                             background: 'rgba(0,0,0,0.3)',
                                             padding: '0.5rem',
-                                            borderRadius: '4px',
+                                            borderRadius: 'var(--radius-sm)',
                                             marginTop: '0.5rem',
                                             maxHeight: '100px',
                                             overflowY: 'auto'
@@ -1160,7 +1214,7 @@ export const Metronome: React.FC = () => {
                                     width: '100%',
                                     height: '8px',
                                     background: 'var(--color-border)',
-                                    borderRadius: '4px',
+                                    borderRadius: 'var(--radius-sm)',
                                     marginBottom: '1rem',
                                     overflow: 'hidden'
                                 }}>
@@ -1270,11 +1324,11 @@ export const Metronome: React.FC = () => {
 
                     {/* Feedback Display (Gauge) */}
                     <div style={{ height: '50px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', marginBottom: '0.5rem' }}>
-                        <TimingGauge offsetMs={offsetMs} feedback={feedback} />
+                        <TimingGauge offsetMs={displayFeedback.offsetMs} feedback={displayFeedback.feedback} />
                         <div style={{ height: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            {feedback && (
-                                <div style={{ fontSize: '0.8rem', fontWeight: 'bold', color: feedback === 'Perfect' ? 'var(--color-success)' : feedback === 'Good' ? 'var(--color-accent)' : 'var(--color-error)' }}>
-                                    {Math.round(Math.abs(offsetMs))}ms
+                            {displayFeedback.feedback && (
+                                <div style={{ fontSize: '0.8rem', fontWeight: 'bold', color: displayFeedback.feedback === 'Perfect' ? 'var(--color-success)' : displayFeedback.feedback === 'Good' ? 'var(--color-accent)' : 'var(--color-error)' }}>
+                                    {Math.round(Math.abs(displayFeedback.offsetMs))}ms
                                 </div>
                             )}
                         </div>
@@ -1362,15 +1416,15 @@ export const Metronome: React.FC = () => {
                             </div>
 
                             <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '2px', flexWrap: 'wrap' }}>
-                                <button onClick={() => changeBpm(bpm - 10)} style={{ flex: 1, minWidth: '30px', padding: '6px 2px', background: 'transparent', border: '1px solid var(--color-border)', borderRadius: '4px', color: 'var(--color-text)', fontSize: '0.85rem' }}>-10</button>
-                                <button onClick={() => changeBpm(bpm - 1)} style={{ flex: 1, minWidth: '24px', padding: '6px 2px', background: 'transparent', border: '1px solid var(--color-border)', borderRadius: '4px', color: 'var(--color-text)', fontSize: '0.85rem' }}>-1</button>
+                                <button onClick={() => changeBpm(bpm - 10)} style={{ flex: 1, minWidth: '30px', padding: '6px 2px', background: 'transparent', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-sm)', color: 'var(--color-text)', fontSize: '0.85rem' }}>-10</button>
+                                <button onClick={() => changeBpm(bpm - 1)} style={{ flex: 1, minWidth: '24px', padding: '6px 2px', background: 'transparent', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-sm)', color: 'var(--color-text)', fontSize: '0.85rem' }}>-1</button>
 
                                 <div style={{ fontSize: '1.8rem', fontWeight: 'bold', color: 'var(--color-primary)', minWidth: '60px', textAlign: 'center', margin: '0 4px' }}>
                                     {bpm}
                                 </div>
 
-                                <button onClick={() => changeBpm(bpm + 1)} style={{ flex: 1, minWidth: '24px', padding: '6px 2px', background: 'transparent', border: '1px solid var(--color-border)', borderRadius: '4px', color: 'var(--color-text)', fontSize: '0.85rem' }}>+1</button>
-                                <button onClick={() => changeBpm(bpm + 10)} style={{ flex: 1, minWidth: '30px', padding: '6px 2px', background: 'transparent', border: '1px solid var(--color-border)', borderRadius: '4px', color: 'var(--color-text)', fontSize: '0.85rem' }}>+10</button>
+                                <button onClick={() => changeBpm(bpm + 1)} style={{ flex: 1, minWidth: '24px', padding: '6px 2px', background: 'transparent', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-sm)', color: 'var(--color-text)', fontSize: '0.85rem' }}>+1</button>
+                                <button onClick={() => changeBpm(bpm + 10)} style={{ flex: 1, minWidth: '30px', padding: '6px 2px', background: 'transparent', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-sm)', color: 'var(--color-text)', fontSize: '0.85rem' }}>+10</button>
                             </div>
 
                             {/* Slider */}
@@ -1401,17 +1455,17 @@ export const Metronome: React.FC = () => {
                                 }}>
                                     {/* Tabs for Analysis */}
                                     <div style={{ display: 'flex', marginBottom: '1rem', background: 'var(--color-bg)', padding: '2px', borderRadius: 'var(--radius-sm)' }}>
-                                        {(['total', 'left', 'right'] as const).map(t => {
-                                            const label = t === 'total' ? 'TOTAL' : t === 'left' ? 'LEFT (L)' : 'RIGHT (R)';
-                                            const isActive = summaryTab === t;
-                                            const hasData = t === 'total' || (t === 'left' && lastSessionStats.left) || (t === 'right' && lastSessionStats.right);
+                                        {(['total', 'left', 'right'] as const).map(tabKey => {
+                                            const label = t(`report.${tabKey}`);
+                                            const isActive = summaryTab === tabKey;
+                                            const hasData = tabKey === 'total' || (tabKey === 'left' && lastSessionStats.left) || (tabKey === 'right' && lastSessionStats.right);
 
                                             if (!hasData) return null;
 
                                             return (
                                                 <button
-                                                    key={t}
-                                                    onClick={() => setSummaryTab(t)}
+                                                    key={tabKey}
+                                                    onClick={() => setSummaryTab(tabKey)}
                                                     style={{
                                                         flex: 1,
                                                         padding: '0.4rem',
@@ -1420,7 +1474,7 @@ export const Metronome: React.FC = () => {
                                                         border: 'none',
                                                         borderRadius: 'var(--radius-sm)',
                                                         background: isActive ? 'var(--color-primary)' : 'transparent',
-                                                        color: isActive ? '#000' : 'var(--color-text-dim)',
+                                                        color: isActive ? '#fff' : 'var(--color-text-dim)',
                                                         cursor: 'pointer'
                                                     }}
                                                 >
@@ -1438,7 +1492,7 @@ export const Metronome: React.FC = () => {
                                                 ? lastSessionStats.left
                                                 : lastSessionStats.right;
 
-                                        if (!data) return <div style={{ textAlign: 'center', padding: '1rem', color: '#666' }}>No Data</div>;
+                                        if (!data) return <div style={{ textAlign: 'center', padding: '1rem', color: '#666' }}>{t('report.no_data')}</div>;
 
                                         return (
                                             <div style={{ display: 'flex', alignItems: 'center' }}>
@@ -1457,7 +1511,7 @@ export const Metronome: React.FC = () => {
                                                         {data.rank}
                                                     </div>
                                                     <div style={{ fontSize: '1rem', fontWeight: 'bold', color: '#ccc' }}>
-                                                        {data.score} <span style={{ fontSize: '0.7rem' }}>pts</span>
+                                                        {data.score} <span style={{ fontSize: '0.7rem' }}>{t('report.pts')}</span>
                                                     </div>
                                                 </div>
 
@@ -1466,10 +1520,10 @@ export const Metronome: React.FC = () => {
                                                     {/* Accuracy Bar */}
                                                     <div>
                                                         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', marginBottom: '2px', color: '#aaa' }}>
-                                                            <span>TIMING ACCURACY</span>
-                                                            <span>{Math.round(data.accuracy)}ms avg</span>
+                                                            <span>{t('report.timing_accuracy')}</span>
+                                                            <span>{Math.round(data.accuracy)}ms {t('report.avg')}</span>
                                                         </div>
-                                                        <div style={{ height: '6px', width: '100%', background: '#333', borderRadius: '3px', overflow: 'hidden' }}>
+                                                        <div style={{ height: '6px', width: '100%', background: '#333', borderRadius: 'var(--radius-sm)', overflow: 'hidden' }}>
                                                             <div style={{
                                                                 height: '100%',
                                                                 width: `${Math.max(0, Math.min(100, 100 - (data.accuracy - 20) * (100 / 60)))}%`, // 20ms full, 80ms empty
@@ -1481,10 +1535,10 @@ export const Metronome: React.FC = () => {
                                                     {/* Stability Bar */}
                                                     <div>
                                                         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', marginBottom: '2px', color: '#aaa' }}>
-                                                            <span>STABILITY (SD)</span>
+                                                            <span>{t('report.stability')}</span>
                                                             <span>{Math.round(data.stdDev)}ms</span>
                                                         </div>
-                                                        <div style={{ height: '6px', width: '100%', background: '#333', borderRadius: '3px', overflow: 'hidden' }}>
+                                                        <div style={{ height: '6px', width: '100%', background: '#333', borderRadius: 'var(--radius-sm)', overflow: 'hidden' }}>
                                                             <div style={{
                                                                 height: '100%',
                                                                 width: `${Math.max(0, Math.min(100, 100 - ((data.stdDev || 0) - 10) * (100 / 40)))}%`, // 10ms full, 50ms empty
@@ -1496,15 +1550,15 @@ export const Metronome: React.FC = () => {
                                                     {/* Tendency Bar (Bipolar) */}
                                                     <div>
                                                         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', marginBottom: '2px', color: '#aaa' }}>
-                                                            <span>TENDENCY</span>
+                                                            <span>{t('report.tendency')}</span>
                                                             <span style={{
                                                                 color: data.tendency < -5 ? '#fa8c16' : data.tendency > 5 ? '#ff4d4f' : '#52c41a'
                                                             }}>
-                                                                {Math.abs(data.tendency) < 5 ? 'Just Right' :
-                                                                    data.tendency < 0 ? `Rush (${Math.round(data.tendency)}ms)` : `Drag (+${Math.round(data.tendency)}ms)`}
+                                                                {Math.abs(data.tendency) < 5 ? t('report.just_right') :
+                                                                    data.tendency < 0 ? `${t('report.rush')} (${Math.round(data.tendency)}ms)` : `${t('report.drag')} (+${Math.round(data.tendency)}ms)`}
                                                             </span>
                                                         </div>
-                                                        <div style={{ height: '6px', width: '100%', background: '#333', borderRadius: '3px', position: 'relative' }}>
+                                                        <div style={{ height: '6px', width: '100%', background: '#333', borderRadius: 'var(--radius-sm)', position: 'relative' }}>
                                                             {/* Center Marker */}
                                                             <div style={{ position: 'absolute', left: '50%', top: 0, bottom: 0, width: '2px', background: '#555', transform: 'translateX(-50%)' }} />
                                                             {/* Fill */}
@@ -1516,17 +1570,17 @@ export const Metronome: React.FC = () => {
                                                                 // Scale: 50ms = full width (50%)
                                                                 width: `${Math.min(50, Math.abs(data.tendency) * (50 / 50))}%`,
                                                                 background: data.tendency < 0 ? '#fa8c16' : '#ff4d4f', // Orange for Rush, Red for Drag (or adjust colors?)
-                                                                borderTopLeftRadius: data.tendency < 0 ? '3px' : '0',
-                                                                borderBottomLeftRadius: data.tendency < 0 ? '3px' : '0',
-                                                                borderTopRightRadius: data.tendency > 0 ? '3px' : '0',
-                                                                borderBottomRightRadius: data.tendency > 0 ? '3px' : '0',
+                                                                borderTopLeftRadius: data.tendency < 0 ? 'var(--radius-sm)' : '0',
+                                                                borderBottomLeftRadius: data.tendency < 0 ? 'var(--radius-sm)' : '0',
+                                                                borderTopRightRadius: data.tendency > 0 ? 'var(--radius-sm)' : '0',
+                                                                borderBottomRightRadius: data.tendency > 0 ? 'var(--radius-sm)' : '0',
                                                             }} />
                                                         </div>
                                                     </div>
 
                                                     {/* Hit Count Label */}
                                                     <div style={{ textAlign: 'right', fontSize: '0.75rem', color: '#666', marginTop: '2px' }}>
-                                                        Hits: {data.hitCount}
+                                                        {t('report.hits')}: {data.hitCount}
                                                     </div>
                                                 </div>
                                             </div>

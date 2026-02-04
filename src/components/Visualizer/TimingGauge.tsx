@@ -29,7 +29,7 @@ export const TimingGauge: React.FC<TimingGaugeProps> = ({ offsetMs, feedback }) 
                 width: '100%',
                 height: '8px',
                 background: '#333',
-                borderRadius: '4px',
+                borderRadius: 'var(--radius-sm)',
                 position: 'relative',
                 overflow: 'hidden' // optional
             }}>

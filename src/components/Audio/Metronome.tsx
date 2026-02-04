@@ -16,7 +16,9 @@ import { TimingGauge } from '../Visualizer/TimingGauge';
 import { TimingDeviationGraph } from '../Analysis/TimingDeviationGraph';
 import { ManualHelper } from '../Manual/ManualHelper';
 import { PatternManager } from '../Editor/PatternManager';
-import { PATTERNS } from '../../utils/patterns';
+import { PATTERNS, measuresToSequence, expandPattern } from '../../utils/patterns';
+import { useLiveQuery } from 'dexie-react-hooks';
+import { db } from '../../db/db';
 
 export const Metronome: React.FC = () => {
     const { t } = useTranslation();
@@ -30,8 +32,41 @@ export const Metronome: React.FC = () => {
         return 'training';
     });
 
+
+
+    // Custom Patterns from DB
+    const customPatterns = useLiveQuery(() => db.custom_patterns.toArray(), []) || [];
+
+    // Merge Presets & Custom
+    // Note: We need a unified list. Custom patterns use number IDs, presets use string IDs.
+    // We'll convert custom IDs to string for the select value.
+    const allPatterns = React.useMemo(() => {
+        const customs = customPatterns.map(cp => ({
+            id: String(cp.id), // Ensure string ID for <select>
+            name: cp.name,
+            sequence: measuresToSequence(cp.measures),
+            isCustom: true
+        }));
+        return [...PATTERNS, ...customs];
+    }, [customPatterns]);
+
     const [selectedPatternId, setSelectedPatternId] = useState(PATTERNS[2].id);
-    const selectedPattern = PATTERNS.find(p => p.id === selectedPatternId) || PATTERNS[0];
+
+    // Find pattern in combined list
+    const selectedPattern = allPatterns.find(p => p.id === String(selectedPatternId)) || PATTERNS[0];
+
+    // Check if custom pattern
+    const isCustomPattern = 'isCustom' in selectedPattern && selectedPattern.isCustom;
+
+    // Get expanded measures for custom patterns
+    const expandedMeasures = React.useMemo(() => {
+        if (!isCustomPattern) return null;
+        // Find the original custom pattern from DB
+        const customP = customPatterns.find(cp => String(cp.id) === String(selectedPatternId));
+        if (!customP) return null;
+        return expandPattern(customP.measures);
+    }, [isCustomPattern, selectedPatternId, customPatterns]);
+
     const [disableRecording, setDisableRecording] = useState(false);
     const [editorIsDirty, setEditorIsDirty] = useState(false);
 
@@ -99,10 +134,19 @@ export const Metronome: React.FC = () => {
     const {
         bpm, isPlaying, start, stop, changeBpm,
         currentStep, lastBeatTime, isCountIn,
-        setSubdivision, setGapClick,
+        setSubdivision, setGapClick, setPattern,
         audioContext,
         initializeAudio
     } = useMetronome();
+
+    // Effect: Set pattern on engine when selection changes
+    useEffect(() => {
+        if (isCustomPattern && expandedMeasures) {
+            setPattern(expandedMeasures);
+        } else {
+            setPattern(null); // Use default mode for presets
+        }
+    }, [isCustomPattern, expandedMeasures, setPattern]);
 
     const { isMicReady, startAnalysis, stopAnalysis, clearOnsets, onsets, mediaStream, analyzer } = useAudioAnalysis({
         audioContext,
@@ -658,7 +702,10 @@ export const Metronome: React.FC = () => {
         // Normalize
         const len = selectedPattern.sequence.length;
         const index = (targetStep % len + len) % len;
-        currentHand = selectedPattern.sequence[index];
+        const note = selectedPattern.sequence[index];
+        if (note !== '-') {
+            currentHand = note as 'L' | 'R';
+        }
         patternStep = index;
     }
 
@@ -1158,7 +1205,10 @@ export const Metronome: React.FC = () => {
                     <div>
                         <select
                             value={selectedPatternId}
-                            onChange={(e) => setSelectedPatternId(e.target.value)}
+                            onChange={(e) => {
+                                if (isPlaying) stop();
+                                setSelectedPatternId(e.target.value);
+                            }}
                             style={{
                                 width: '100%',
                                 padding: '0.8rem',
@@ -1170,7 +1220,17 @@ export const Metronome: React.FC = () => {
                                 outline: 'none'
                             }}
                         >
-                            {PATTERNS.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+
+                            <optgroup label={t('presets') || "Presets"}>
+                                {PATTERNS.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                            </optgroup>
+                            {customPatterns.length > 0 && (
+                                <optgroup label={t('custom') || "Custom"}>
+                                    {customPatterns.map(p => (
+                                        <option key={p.id} value={p.id}>{p.name}</option>
+                                    ))}
+                                </optgroup>
+                            )}
                         </select>
                     </div>
 
@@ -1181,6 +1241,7 @@ export const Metronome: React.FC = () => {
                             currentStep={currentStep}
                             isPlaying={isPlaying}
                             subdivision={subdivision}
+                            expandedMeasures={expandedMeasures}
                         />
 
                         {isPlaying && isCountIn && (
@@ -1286,6 +1347,7 @@ export const Metronome: React.FC = () => {
                                 <SubdivisionControl
                                     subdivision={subdivision}
                                     onChange={handleSubdivisionChange}
+                                    disabled={isCustomPattern}
                                 />
                                 <div style={{ fontSize: '0.85rem', color: 'var(--color-text-dim)', fontWeight: 'bold', letterSpacing: '1px' }}>TEMPO</div>
                                 <GapClickControl

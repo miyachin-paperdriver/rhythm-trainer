@@ -6,6 +6,7 @@ import { PATTERNS } from '../../utils/patterns';
 
 export const HistoryView = () => {
     const sessions = useLiveQuery(() => db.sessions.orderBy('date').reverse().toArray());
+    const customPatterns = useLiveQuery(() => db.custom_patterns.toArray()) || [];
     const [expandedId, setExpandedId] = useState<number | null>(null);
     const [summaryTab, setSummaryTab] = useState<'total' | 'left' | 'right'>('total');
 
@@ -13,7 +14,17 @@ export const HistoryView = () => {
         return <div style={{ color: '#888', marginTop: '2rem' }}>No history yet. Start training!</div>;
     }
 
-    const getPatternName = (id: string) => PATTERNS.find(p => p.id === id)?.name || id;
+    const getPatternName = (id: string) => {
+        // Check presets
+        const preset = PATTERNS.find(p => p.id === id);
+        if (preset) return preset.name;
+
+        // Check custom patterns (id might be string in session, number in DB)
+        const custom = customPatterns.find(p => String(p.id) === id);
+        if (custom) return custom.name;
+
+        return id;
+    };
 
     const formatDate = (date: Date) => {
         return new Intl.DateTimeFormat('ja-JP', {

@@ -5,6 +5,7 @@ interface SubdivisionControlProps {
     subdivision: Subdivision;
     onChange: (sub: Subdivision) => void;
     theme?: 'light' | 'dark';
+    disabled?: boolean;
 }
 
 import noteQuarter from '../../assets/note_quarter.png';
@@ -58,7 +59,7 @@ const NoteIcon: React.FC<{ type: Subdivision; size?: number; color?: string }> =
     );
 };
 
-export const SubdivisionControl: React.FC<SubdivisionControlProps> = ({ subdivision, onChange }) => {
+export const SubdivisionControl: React.FC<SubdivisionControlProps> = ({ subdivision, onChange, disabled }) => {
     const [isOpen, setIsOpen] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);
 
@@ -76,22 +77,23 @@ export const SubdivisionControl: React.FC<SubdivisionControlProps> = ({ subdivis
     const options: Subdivision[] = [1, 2, 3, 4];
 
     return (
-        <div ref={containerRef} style={{ position: 'relative', display: 'inline-block' }}>
+        <div ref={containerRef} style={{ position: 'relative', display: 'inline-block', opacity: disabled ? 0.5 : 1 }}>
             <button
-                onClick={() => setIsOpen(!isOpen)}
+                onClick={() => !disabled && setIsOpen(!isOpen)}
+                disabled={disabled}
                 style={{
                     background: 'transparent',
                     border: '1px solid var(--color-border)',
                     borderRadius: 'var(--radius-md)',
                     padding: '6px',
-                    cursor: 'pointer',
+                    cursor: disabled ? 'not-allowed' : 'pointer',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     color: 'var(--color-primary)',
                     minWidth: '40px'
                 }}
-                title="Subdivision"
+                title={disabled ? 'カスタムパターンはサブディビジョンが固定されています' : 'Subdivision'}
             >
                 <NoteIcon type={subdivision} size={30} />
             </button>

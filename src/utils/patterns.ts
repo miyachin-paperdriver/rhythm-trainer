@@ -83,3 +83,29 @@ export function patternToMeasures(pattern: Pattern, subdivision: Subdivision = 1
 export function measuresToSequence(measures: MeasureData[]): Note[] {
     return measures.flatMap(m => m.notes);
 }
+
+// ヘルパー関数: パターンが2小節未満、または奇数小節数の場合に展開する
+export function expandPattern(measures: MeasureData[]): MeasureData[] {
+    if (measures.length === 0) return [];
+
+    let expanded = [...measures];
+
+    // 1. 少なくとも2小節にする
+    while (expanded.length < 2) {
+        expanded = [...expanded, ...measures];
+    }
+
+    // 2. 偶数小節にする
+    if (expanded.length % 2 !== 0) {
+        // 元のパターンをもう一度追加すれば必ず偶数になるか？
+        // 元が奇数(3) -> 3繰り返すのはダメ。単純に倍にすれば偶数になる。
+        // 元が1 -> step1で2になっている(偶数)。
+        // 元が3 -> step1スキップ -> step2で倍にして6(偶数)。
+        // 元のパターン単位で追加するほうが自然だが、
+        // 元のパターン単位で追加するほうが自然だが、
+        // step1で既に展開されている可能性があるので、現在のexpanded全体をもう一度繰り返すのが手っ取り早い
+        expanded = [...expanded, ...expanded];
+    }
+
+    return expanded;
+}

@@ -1,10 +1,27 @@
+import type { MeasureData, Note } from '../../utils/patterns';
+
 export type Subdivision = 1 | 2 | 3 | 4; // 1=Quarter, 2=8th, 3=Triplet, 4=16th
+
+// Tick represents one schedulable event with context
+interface TickEvent {
+    measureIndex: number;
+    beatIndex: number;
+    subBeatIndex: number;
+    subdivision: Subdivision;
+    note: Note; // 'R' | 'L' | '-'
+    globalTickIndex: number;
+}
 
 export class MetronomeEngine {
     public audioContext: AudioContext | null = null;
     private isPlaying: boolean = false;
     private bpm: number = 120;
     private subdivision: Subdivision = 1;
+
+    // Custom Pattern Support
+    private patternMeasures: MeasureData[] | null = null;
+    private tickSequence: TickEvent[] = [];
+    private currentTickIndex: number = 0;
 
     // Gap Click Configuration
     private gapClickEnabled: boolean = false;
@@ -58,7 +75,15 @@ export class MetronomeEngine {
         this.subBeatNumber = 0;
         this.MeasureNumber = -1; // Start with 1 bar count-in
         this.stepNumber = -4; // Assuming 4/4
-        this.tickIndex = -(4 * this.subdivision);
+
+        // For custom patterns, use first measure's subdivision for count-in
+        // Otherwise use global subdivision
+        const countInSubdivision = (this.tickSequence.length > 0 && this.patternMeasures && this.patternMeasures.length > 0)
+            ? this.patternMeasures[0].subdivision as Subdivision
+            : this.subdivision;
+
+        this.tickIndex = -(4 * countInSubdivision);
+        this.currentTickIndex = this.tickIndex; // Sync count-in index
         this.nextNoteTime = this.audioContext!.currentTime + 0.1;
         this.scheduler();
     }
@@ -126,13 +151,55 @@ export class MetronomeEngine {
         this.muteBars = mute;
     }
 
+    public setPattern(measures: MeasureData[] | null) {
+        this.patternMeasures = measures;
+        if (measures && measures.length > 0) {
+            this.tickSequence = this.buildTickSequence(measures);
+        } else {
+            this.tickSequence = [];
+        }
+        this.currentTickIndex = 0;
+    }
+
+    private buildTickSequence(measures: MeasureData[]): TickEvent[] {
+        const ticks: TickEvent[] = [];
+        let globalIdx = 0;
+        for (let measureIdx = 0; measureIdx < measures.length; measureIdx++) {
+            const measure = measures[measureIdx];
+            const subdivision = measure.subdivision as Subdivision;
+            const notesPerBeat = subdivision;
+            // 4 beats per measure, notes array length = 4 * subdivision
+            for (let beatIdx = 0; beatIdx < 4; beatIdx++) {
+                for (let subIdx = 0; subIdx < notesPerBeat; subIdx++) {
+                    const noteIndex = beatIdx * notesPerBeat + subIdx;
+                    const note = measure.notes[noteIndex] || '-';
+                    ticks.push({
+                        measureIndex: measureIdx,
+                        beatIndex: beatIdx,
+                        subBeatIndex: subIdx,
+                        subdivision,
+                        note,
+                        globalTickIndex: globalIdx++
+                    });
+                }
+            }
+        }
+        return ticks;
+    }
+
     public setOnTick(callback: (beat: number, time: number, step: number, isMuted: boolean, isCountIn: boolean, subBeat: number, tickIndex: number) => void) {
         this.onTick = callback;
     }
 
     private scheduler() {
         while (this.nextNoteTime < this.audioContext!.currentTime + this.scheduleAheadTime) {
-            this.scheduleNote(this.beatNumber, this.subBeatNumber, this.nextNoteTime);
+            if (this.tickSequence.length > 0) {
+                // Custom pattern mode
+                this.schedulePatternNote(this.nextNoteTime);
+            } else {
+                // Default mode
+                this.scheduleNote(this.beatNumber, this.subBeatNumber, this.nextNoteTime);
+            }
             this.nextNote();
         }
         if (this.isPlaying) {
@@ -141,25 +208,152 @@ export class MetronomeEngine {
     }
 
     private nextNote() {
-        const secondsPerBeat = 60.0 / this.bpm;
-        const secondsPerSub = secondsPerBeat / this.subdivision;
+        if (this.tickSequence.length > 0) {
+            // Custom pattern mode
+            const seqLen = this.tickSequence.length;
+            const isCountIn = this.MeasureNumber < 0;
 
-        this.nextNoteTime += secondsPerSub;
+            // Get subdivision for timing
+            // During count-in, use first measure's subdivision
+            // After count-in, use current tick's subdivision
+            let currentSubdivision: Subdivision;
+            if (isCountIn) {
+                currentSubdivision = this.patternMeasures && this.patternMeasures.length > 0
+                    ? this.patternMeasures[0].subdivision as Subdivision
+                    : this.subdivision;
+            } else {
+                const safeTickIdx = this.currentTickIndex % seqLen;
+                currentSubdivision = this.tickSequence[safeTickIdx].subdivision;
+            }
 
-        // Advance counters
-        this.tickIndex++;
-        this.subBeatNumber++;
+            const secondsPerBeat = 60.0 / this.bpm;
+            const secondsPerSub = secondsPerBeat / currentSubdivision;
+            this.nextNoteTime += secondsPerSub;
 
-        if (this.subBeatNumber >= this.subdivision) {
-            this.subBeatNumber = 0;
-            this.beatNumber++;
-            this.stepNumber++;
+            // Advance counters
+            this.currentTickIndex++;
+            this.tickIndex++;
+            this.subBeatNumber++;
 
-            if (this.beatNumber >= 4) { // 4/4 fixed for now
-                this.beatNumber = 0;
-                this.MeasureNumber++;
+            if (isCountIn) {
+                // During count-in, use first measure's subdivision for beat counting
+                if (this.subBeatNumber >= currentSubdivision) {
+                    this.subBeatNumber = 0;
+                    this.beatNumber++;
+                    this.stepNumber++;
+
+                    if (this.beatNumber >= 4) {
+                        this.beatNumber = 0;
+                        this.MeasureNumber++; // Will transition from -1 to 0
+                        // Reset currentTickIndex to 0 when count-in ends
+                        if (this.MeasureNumber === 0) {
+                            this.currentTickIndex = 0;
+                        }
+                    }
+                }
+            } else {
+                // After count-in, use tick sequence for state
+                const nextTickIdx = this.currentTickIndex % seqLen;
+                const nextTick = this.tickSequence[nextTickIdx];
+                this.beatNumber = nextTick.beatIndex;
+                this.subBeatNumber = nextTick.subBeatIndex;
+                this.MeasureNumber = nextTick.measureIndex;
+            }
+        } else {
+            // Default mode (presets)
+            const secondsPerBeat = 60.0 / this.bpm;
+            const secondsPerSub = secondsPerBeat / this.subdivision;
+
+            this.nextNoteTime += secondsPerSub;
+
+            // Advance counters
+            this.tickIndex++;
+            this.subBeatNumber++;
+
+            if (this.subBeatNumber >= this.subdivision) {
+                this.subBeatNumber = 0;
+                this.beatNumber++;
+                this.stepNumber++;
+
+                if (this.beatNumber >= 4) { // 4/4 fixed for now
+                    this.beatNumber = 0;
+                    this.MeasureNumber++;
+                }
             }
         }
+    }
+
+    private schedulePatternNote(time: number) {
+        if (!this.audioContext) return;
+
+        const isCountIn = this.MeasureNumber < 0;
+        const seqLen = this.tickSequence.length;
+        const tickIdx = isCountIn ? this.currentTickIndex : (this.currentTickIndex % seqLen);
+
+        // For count-in, we always play. After count-in, use the pattern.
+        let note: Note = 'R'; // Default for count-in
+        let beat = this.beatNumber;
+        let subBeat = this.subBeatNumber;
+
+        if (!isCountIn && this.tickSequence.length > 0) {
+            const tick = this.tickSequence[tickIdx];
+            note = tick.note;
+            beat = tick.beatIndex;
+            subBeat = tick.subBeatIndex;
+        }
+
+        // Gap Click Logic (Mute check) - ONLY if not count-in
+        let isMuted = false;
+        if (!isCountIn && this.gapClickEnabled) {
+            const cycle = this.playBars + this.muteBars;
+            const patternMeasure = Math.floor(this.currentTickIndex / (seqLen / (this.patternMeasures?.length || 1)));
+            const pos = patternMeasure % cycle;
+            if (pos >= this.playBars) {
+                isMuted = true;
+            }
+        }
+
+        // Trigger onTick for EVERY scheduled note (beat or subdivision)
+        if (this.onTick) {
+            this.onTick(beat, time, this.stepNumber, isMuted, isCountIn, subBeat, this.tickIndex);
+        }
+
+        // Check if rest
+        if (note === '-') {
+            return; // Don't play sound for rests
+        }
+
+        if (isMuted) return; // Don't play sound if muted
+
+        const osc = this.audioContext.createOscillator();
+        const gainNode = this.audioContext.createGain();
+        osc.connect(gainNode);
+        gainNode.connect(this.audioContext.destination);
+
+        // Frequency
+        if (isCountIn) {
+            // Distinct count-in sound (e.g. higher pitch tick for all beats)
+            osc.frequency.value = 1000;
+        } else {
+            if (beat === 0 && subBeat === 0) {
+                osc.frequency.value = 880; // Downbeat
+            } else if (subBeat === 0) {
+                osc.frequency.value = 440; // Quarter note
+            } else {
+                osc.frequency.value = 220; // Subdivision
+            }
+        }
+
+        // Volume Adjustment for subdivisions
+        // subBeat 0 is louder, others slightly quieter
+        const volume = subBeat === 0 ? 1 : 0.5;
+
+        gainNode.gain.setValueAtTime(0, time);
+        gainNode.gain.linearRampToValueAtTime(volume, time + 0.001);
+        gainNode.gain.exponentialRampToValueAtTime(0.001, time + 0.05);
+
+        osc.start(time);
+        osc.stop(time + 0.06);
     }
 
     private scheduleNote(beat: number, subBeat: number, time: number) {

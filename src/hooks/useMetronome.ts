@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { MetronomeEngine, type Subdivision } from '../components/Audio/MetronomeEngine';
+import type { MeasureData } from '../utils/patterns';
 
 export const useMetronome = () => {
     const engineRef = useRef<MetronomeEngine | null>(null);
@@ -89,6 +90,10 @@ export const useMetronome = () => {
         engineRef.current?.setGapClick(enabled, play, mute);
     }, []);
 
+    const setPattern = useCallback((measures: MeasureData[] | null) => {
+        engineRef.current?.setPattern(measures);
+    }, []);
+
     const initializeAudio = useCallback(() => {
         engineRef.current?.init();
         setAudioContext(engineRef.current?.audioContext || null);
@@ -102,6 +107,7 @@ export const useMetronome = () => {
         changeBpm,
         setSubdivision,
         setGapClick,
+        setPattern,
         currentBeat,
         currentStep,
         lastBeatTime,

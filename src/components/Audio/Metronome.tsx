@@ -648,8 +648,10 @@ export const Metronome: React.FC = () => {
     const { startRecording, stopRecording, clearRecording, audioBlob, startTime, duration } = useAudioRecorder();
     const recordingStartedRef = React.useRef(false);
 
-    // Determine Hand
+    // Determine Hand and Step
     let currentHand: 'L' | 'R' = 'R';
+    let patternStep: number | undefined = undefined;
+
     if (selectedPattern) {
         let targetStep = currentStep;
         if (closestBeatType === 'next') targetStep += 1;
@@ -657,6 +659,7 @@ export const Metronome: React.FC = () => {
         const len = selectedPattern.sequence.length;
         const index = (targetStep % len + len) % len;
         currentHand = selectedPattern.sequence[index];
+        patternStep = index;
     }
 
     // ---- Logic ----
@@ -668,6 +671,7 @@ export const Metronome: React.FC = () => {
         feedback,
         onsetIndex,
         hand: currentHand,
+        patternStep, // Pass the pattern step
         disableRecording
     });
 

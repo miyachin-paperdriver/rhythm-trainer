@@ -41,7 +41,9 @@ export const TimingDeviationGraph: React.FC<TimingDeviationGraphProps> = ({ hits
         // Let's use `hit.index % patternLength` for the X-Axis step.
 
         const graphPoints = hits.map(hit => {
-            const step = hit.index % patternLength;
+            // Use recorded pattern step (corrected) or fallback to index (simple sequential)
+            const step = hit.patternStep !== undefined ? hit.patternStep : (hit.index % patternLength);
+
             // X coordinate: distribute steps evenly across width
             const x = padding.left + (step / (patternLength - 1 || 1)) * (width - padding.left - padding.right);
 

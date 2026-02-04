@@ -9,6 +9,7 @@ interface UseSessionManagerProps {
     feedback: string | null; // From useRhythmScoring
     onsetIndex: number; // From useRhythmScoring (Unique ID for hit)
     hand?: 'L' | 'R'; // New: Hand used for this hit
+    patternStep?: number; // New: Step index in the pattern (for visualization alignment)
     disableRecording?: boolean; // New: If true, do not record hits
 }
 
@@ -33,9 +34,10 @@ export interface RecordedHit {
     hand: 'L' | 'R';
     timestamp: number;
     index: number;
+    patternStep?: number; // Added
 }
 
-export const useSessionManager = ({ isPlaying, bpm, patternId, latestOffsetMs, feedback, onsetIndex, hand = 'R', disableRecording = false }: UseSessionManagerProps) => {
+export const useSessionManager = ({ isPlaying, bpm, patternId, latestOffsetMs, feedback, onsetIndex, hand = 'R', patternStep, disableRecording = false }: UseSessionManagerProps) => {
     const [hits, setHits] = useState<RecordedHit[]>([]);
     const [lastSessionStats, setLastSessionStats] = useState<SessionResult | null>(null);
     const [lastSessionHits, setLastSessionHits] = useState<RecordedHit[]>([]);
@@ -76,9 +78,10 @@ export const useSessionManager = ({ isPlaying, bpm, patternId, latestOffsetMs, f
             offset: latestOffsetMs,
             hand,
             timestamp,
-            index: onsetIndex
+            index: onsetIndex,
+            patternStep
         }]);
-    }, [latestOffsetMs, isPlaying, feedback, onsetIndex, hand]);
+    }, [latestOffsetMs, isPlaying, feedback, onsetIndex, hand, patternStep]);
 
     const calculateRank = (score: number): string => {
         if (score >= 95) return 'S';

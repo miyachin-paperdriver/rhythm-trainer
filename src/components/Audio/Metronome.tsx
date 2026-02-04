@@ -222,28 +222,36 @@ export const Metronome: React.FC = () => {
             // ---- NEW Step 1.5: Measure Click Bleed ----
             setMicCalibState(prev => ({ ...prev, step: 'bleed', noisePeak: noise, message: 'Measuring Click Sound... Stay Quiet.' }));
 
-            // Generate Clicks - MUST match MetronomeEngine sounds
-            // MetronomeEngine uses: 1000Hz (count-in), 880Hz (downbeat), 440Hz (quarter), 220Hz (sub)
-            // We play 4 clicks representing the loudest sounds user will hear:
-            // 1. 1000Hz (count-in), 2. 880Hz (accent/downbeat), 3. 440Hz (normal), 4. 880Hz (accent again)
+            // Generate Clicks - Comprehensive Test Sequence
+            // We want to test ALL sounds the engine might make:
+            // 1000Hz (Count-in), 880Hz (Downbeat), 440Hz (Beat), 220Hz (Subdivision)
+            // Play 4 of each quickly to catch resonance/reverb.
             const ctx = audioContextRef.current;
             if (ctx) {
                 const now = ctx.currentTime;
-                const clickConfigs = [
-                    { time: now + 0.5, freq: 1000 }, // Count-in sound
-                    { time: now + 1.0, freq: 880 },  // Downbeat/Accent
-                    { time: now + 1.5, freq: 440 },  // Quarter note
-                    { time: now + 2.0, freq: 880 },  // Downbeat again
-                ];
-                clickConfigs.forEach(({ time, freq }) => {
+                const freqs = [1000, 880, 440, 220]; // All engine frequencies
+                let config: { time: number, freq: number }[] = [];
+
+                // Gap between sets: 0.8s, Gap between clicks: 0.3s
+                let startTime = now + 0.5;
+
+                freqs.forEach(freq => {
+                    for (let i = 0; i < 4; i++) {
+                        config.push({ time: startTime, freq });
+                        startTime += 0.25; // 250ms apart
+                    }
+                    startTime += 0.5; // Pause between frequencies
+                });
+
+                config.forEach(({ time, freq }) => {
                     const osc = ctx.createOscillator();
                     const gainNode = ctx.createGain();
                     osc.connect(gainNode);
                     gainNode.connect(ctx.destination);
                     osc.frequency.value = freq;
-                    // Match MetronomeEngine envelope EXACTLY
+                    // Match MetronomeEngine envelope
                     gainNode.gain.setValueAtTime(0, time);
-                    gainNode.gain.linearRampToValueAtTime(1.0, time + 0.001); // Full volume like engine
+                    gainNode.gain.linearRampToValueAtTime(1.0, time + 0.001);
                     gainNode.gain.exponentialRampToValueAtTime(0.001, time + 0.05);
                     osc.start(time);
                     osc.stop(time + 0.06);
@@ -253,7 +261,8 @@ export const Metronome: React.FC = () => {
             // Reset Ref for Bleed measurement
             micCalibRef.current.maxPeak = 0;
 
-            // Poll for 2.5s (covering the clicks)
+            // Poll for sufficient time to cover all clicks
+            // 4 freqs * 4 clicks * 0.25s + gaps ~= 5-6s total
             micCalibRef.current.poll = setInterval(() => {
                 if (micAnalyzerRef.current) {
                     const lvl = micAnalyzerRef.current.currentLevel;
@@ -330,7 +339,7 @@ export const Metronome: React.FC = () => {
                     }
                 }, 20);
 
-            }, 2500); // 2.5s for Bleed check
+            }, 6000); // 6.0s for Extended Bleed check
 
         }, 3000); // 3s for Noise check
     };
@@ -417,11 +426,11 @@ export const Metronome: React.FC = () => {
         const projectedSignal = signalMax * gainRatio; // Should be ~0.4 now (due to 0.8 factor)
 
         // Set Threshold
-        // SAFETY MARGIN: Double the threshold multiplier to reduce false positives
-        // Old: Max(Floor * 2.5, Signal * 0.15)
-        // New: Max(Floor * 4.0, Signal * 0.30) - more conservative
-        let targetThreshold = Math.max(projectedFloor * 4.0, projectedSignal * 0.30);
-        targetThreshold = Math.max(0.05, Math.min(0.5, targetThreshold)); // Min 0.05 instead of 0.02
+        // SAFETY MARGIN: Major increase to avoid crosstalk.
+        // Old: Max(Floor * 4.0, Signal * 0.30)
+        // New: Max(Floor * 8.0, Signal * 0.50) - Doubled safety margin per user request
+        let targetThreshold = Math.max(projectedFloor * 8.0, projectedSignal * 0.50);
+        targetThreshold = Math.max(0.05, Math.min(0.5, targetThreshold));
 
         // Safety: If Threshold ended up > Signal * 0.8 (too close to signal because floor was high), cap it?
         // No, if floor is high, we MUST have high threshold or we get false positives.

@@ -13,6 +13,7 @@ import { PatternVisualizer } from '../Visualizer/PatternVisualizer';
 import { WaveformVisualizer } from '../Audio/WaveformVisualizer';
 import { HistoryView } from '../Analysis/HistoryView';
 import { TimingGauge } from '../Visualizer/TimingGauge';
+import { TimingDeviationGraph } from '../Analysis/TimingDeviationGraph';
 import { ManualHelper } from '../Manual/ManualHelper';
 import { PatternManager } from '../Editor/PatternManager';
 import { PATTERNS } from '../../utils/patterns';
@@ -659,7 +660,7 @@ export const Metronome: React.FC = () => {
     }
 
     // ---- Logic ----
-    const { lastSessionStats } = useSessionManager({
+    const { lastSessionStats, lastSessionHits } = useSessionManager({
         isPlaying,
         bpm,
         patternId: selectedPatternId,
@@ -1463,6 +1464,14 @@ export const Metronome: React.FC = () => {
                                         );
                                     })()}
                                 </div>
+                            )}
+
+                            {/* Timing Deviation Graph */}
+                            {lastSessionHits && lastSessionHits.length > 0 && selectedPattern && (
+                                <TimingDeviationGraph
+                                    hits={lastSessionHits}
+                                    patternLength={selectedPattern.sequence.length}
+                                />
                             )}
 
                             <WaveformVisualizer

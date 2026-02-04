@@ -28,7 +28,7 @@ export interface SessionResult {
     right?: GroupStats;
 }
 
-interface RecordedHit {
+export interface RecordedHit {
     offset: number;
     hand: 'L' | 'R';
     timestamp: number;
@@ -38,6 +38,7 @@ interface RecordedHit {
 export const useSessionManager = ({ isPlaying, bpm, patternId, latestOffsetMs, feedback, onsetIndex, hand = 'R', disableRecording = false }: UseSessionManagerProps) => {
     const [hits, setHits] = useState<RecordedHit[]>([]);
     const [lastSessionStats, setLastSessionStats] = useState<SessionResult | null>(null);
+    const [lastSessionHits, setLastSessionHits] = useState<RecordedHit[]>([]);
 
     const isPlayingRef = useRef(false);
     const startTimeRef = useRef<number>(0);
@@ -49,6 +50,7 @@ export const useSessionManager = ({ isPlaying, bpm, patternId, latestOffsetMs, f
             // Started
             setHits([]);
             setLastSessionStats(null); // Clear previous stats on new start
+            setLastSessionHits([]);
             startTimeRef.current = Date.now();
             lastProcessedIndexRef.current = -1; // Reset index tracker
         } else if (!isPlaying && isPlayingRef.current) {
@@ -141,6 +143,7 @@ export const useSessionManager = ({ isPlaying, bpm, patternId, latestOffsetMs, f
 
         // Set Local State for UI
         setLastSessionStats(result);
+        setLastSessionHits(hits); // Store hits for graph
 
         // Additional Stats for DB (legacy + extra)
         const earlyCount = allOffsets.filter(o => o < -30).length;
@@ -189,7 +192,8 @@ export const useSessionManager = ({ isPlaying, bpm, patternId, latestOffsetMs, f
 
     return {
         rectordedCount: hits.length,
-        lastSessionStats
+        lastSessionStats,
+        lastSessionHits
     };
 };
 

@@ -9,6 +9,7 @@ interface UseSessionManagerProps {
     feedback: string | null; // From useRhythmScoring
     onsetIndex: number; // From useRhythmScoring (Unique ID for hit)
     hand?: 'L' | 'R'; // New: Hand used for this hit
+    disableRecording?: boolean; // New: If true, do not record hits
 }
 
 // Stats for a single group (Total, Left, or Right)
@@ -34,7 +35,7 @@ interface RecordedHit {
     index: number;
 }
 
-export const useSessionManager = ({ isPlaying, bpm, patternId, latestOffsetMs, feedback, onsetIndex, hand = 'R' }: UseSessionManagerProps) => {
+export const useSessionManager = ({ isPlaying, bpm, patternId, latestOffsetMs, feedback, onsetIndex, hand = 'R', disableRecording = false }: UseSessionManagerProps) => {
     const [hits, setHits] = useState<RecordedHit[]>([]);
     const [lastSessionStats, setLastSessionStats] = useState<SessionResult | null>(null);
 
@@ -59,7 +60,7 @@ export const useSessionManager = ({ isPlaying, bpm, patternId, latestOffsetMs, f
 
     // Record data
     useEffect(() => {
-        if (!isPlaying || feedback === null || onsetIndex === -1) return;
+        if (!isPlaying || feedback === null || onsetIndex === -1 || disableRecording) return;
 
         // Deduplication: Only record if this onset hasn't been processed
         if (onsetIndex <= lastProcessedIndexRef.current) return;

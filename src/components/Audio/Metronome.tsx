@@ -657,7 +657,8 @@ export const Metronome: React.FC = () => {
         latestOffsetMs: offsetMs,
         feedback,
         onsetIndex,
-        hand: currentHand
+        hand: currentHand,
+        disableRecording
     });
 
     // Session Summary Tab State
@@ -696,57 +697,59 @@ export const Metronome: React.FC = () => {
             recordingStartedRef.current = false;
             setSummaryTab('total'); // Reset tab
 
-            if (!disableRecording) {
-                // 1. Ensure Audio Context exists (resume/create)
-                if (!audioContextRef.current) {
-                    console.log('[Start] Init Audio Context...');
-                    initializeAudio();
-                    // Wait for ref to populate
-                    let retries = 0;
-                    while (!audioContextRef.current && retries < 20) {
-                        await new Promise(r => setTimeout(r, 100));
-                        retries++;
-                    }
-                }
+            // Clear previous session data immediately on start
+            clearRecording();
+            clearOnsets();
+            setBeatHistory([]); // Clear history
+            recordingStartedRef.current = false;
+            setSummaryTab('total'); // Reset tab
 
-                // Resume if suspended
-                if (audioContextRef.current?.state === 'suspended') {
-                    try { await audioContextRef.current.resume(); } catch (e) { console.warn(e); }
-                }
+            // ALWAYS Initialize Audio & Request Mic (even for No Rec)
+            // This forces text iOS Audio Session to "PlayAndRecord", which is the only way
+            // to reliably bypass the Silent Switch and maintain high volume.
 
-                // 2. Wait for Analyzer to be populated (via Effect)
-                // If audioContext just got created, useAudioAnalysis needs a render cycle to create analyzer
+            // 1. Ensure Audio Context exists (resume/create)
+            if (!audioContextRef.current) {
+                console.log('[Start] Init Audio Context...');
+                initializeAudio();
+                // Wait for ref to populate
                 let retries = 0;
-                while (!micAnalyzerRef.current && retries < 50) {
-                    await new Promise(r => setTimeout(r, 50));
+                while (!audioContextRef.current && retries < 20) {
+                    await new Promise(r => setTimeout(r, 100));
                     retries++;
-                }
-
-                if (!micAnalyzerRef.current) {
-                    alert("Microphone initialization failed. Please try again or use 'No Record' mode.");
-                    return; // Do not start
-                }
-
-                try {
-                    // 3. Request Mic Permission
-                    await startAnalysis();
-                } catch (e) {
-                    console.error("Mic failed", e);
-                    alert("Microphone access was denied or failed. Please check permissions.");
-                    return; // Do not start
-                }
-            } else {
-                // Even if No Record, ensure AudioContext is ready for playback
-                if (!audioContextRef.current) {
-                    initializeAudio();
-                    await new Promise(r => setTimeout(r, 100)); // Short wait
-                }
-                if (audioContextRef.current?.state === 'suspended') {
-                    try { await audioContextRef.current.resume(); } catch (e) { console.warn(e); }
                 }
             }
 
-            // Only reach here if Mic is ready (or disabled)
+            // Resume if suspended
+            if (audioContextRef.current?.state === 'suspended') {
+                try { await audioContextRef.current.resume(); } catch (e) { console.warn(e); }
+            }
+
+            // 2. Wait for Analyzer to be populated (via Effect)
+            let retries = 0;
+            while (!micAnalyzerRef.current && retries < 50) {
+                await new Promise(r => setTimeout(r, 50));
+                retries++;
+            }
+
+            if (!micAnalyzerRef.current) {
+                // If analyzer failed, we can still try to start, but warn.
+                console.warn("Analyzer not ready. Audio might be quiet in Silent Mode.");
+            }
+
+            try {
+                // 3. Request Mic Permission (Force PlayAndRecord)
+                await startAnalysis();
+            } catch (e) {
+                console.warn("Mic failed", e);
+                // If permission denied, we still start, but warn user about Silent Switch
+                if (!disableRecording) {
+                    alert("Microphone access denied. Recording disabled. (Silent switch bypass may fail)");
+                    // setDisableRecording(true); // Optional: auto-fallback
+                }
+            }
+
+            // Start Engine
             start();
         }
     };

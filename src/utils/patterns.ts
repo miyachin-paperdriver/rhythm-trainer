@@ -55,11 +55,16 @@ export const PATTERNS: Pattern[] = [
     }
 ];
 
-// プリセットをExtendedPattern形式に変換
-export const PRESET_PATTERNS: ExtendedPattern[] = PATTERNS.map(p => ({
-    ...p,
-    isPreset: true
-}));
+// プリセットをExtendedPattern形式に変換（measures を含む）
+export const PRESET_PATTERNS: ExtendedPattern[] = PATTERNS.map(p => {
+    // プリセットは16分音符(subdivision=4)として measures 形式に変換
+    const measures = patternToMeasures(p, 4);
+    return {
+        ...p,
+        isPreset: true,
+        measures
+    };
+});
 
 // ヘルパー関数: PatternからMeasureData配列に変換
 export function patternToMeasures(pattern: Pattern, subdivision: Subdivision = 1): MeasureData[] {

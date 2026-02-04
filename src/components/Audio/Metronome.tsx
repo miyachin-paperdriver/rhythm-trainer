@@ -16,7 +16,7 @@ import { TimingGauge } from '../Visualizer/TimingGauge';
 import { TimingDeviationGraph } from '../Analysis/TimingDeviationGraph';
 import { ManualHelper } from '../Manual/ManualHelper';
 import { PatternManager } from '../Editor/PatternManager';
-import { PATTERNS, measuresToSequence, expandPattern } from '../../utils/patterns';
+import { PATTERNS, measuresToSequence, expandPattern, patternToMeasures, type Note } from '../../utils/patterns';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../../db/db';
 
@@ -39,33 +39,35 @@ export const Metronome: React.FC = () => {
 
     // Merge Presets & Custom
     // Note: We need a unified list. Custom patterns use number IDs, presets use string IDs.
-    // We'll convert custom IDs to string for the select value.
+    // All patterns now have 'measures' for consistent handling.
     const allPatterns = React.useMemo(() => {
+        const presets = PATTERNS.map(p => ({
+            id: p.id,
+            name: p.name,
+            sequence: p.sequence as Note[], // For display compatibility
+            measures: patternToMeasures(p, 4), // Convert to measures format
+            isCustom: false
+        }));
         const customs = customPatterns.map(cp => ({
             id: String(cp.id), // Ensure string ID for <select>
             name: cp.name,
             sequence: measuresToSequence(cp.measures),
+            measures: cp.measures,
             isCustom: true
         }));
-        return [...PATTERNS, ...customs];
+        return [...presets, ...customs];
     }, [customPatterns]);
 
     const [selectedPatternId, setSelectedPatternId] = useState(PATTERNS[2].id);
 
     // Find pattern in combined list
-    const selectedPattern = allPatterns.find(p => p.id === String(selectedPatternId)) || PATTERNS[0];
+    const selectedPattern = allPatterns.find(p => p.id === String(selectedPatternId)) || allPatterns[0];
 
-    // Check if custom pattern
-    const isCustomPattern = 'isCustom' in selectedPattern && selectedPattern.isCustom;
-
-    // Get expanded measures for custom patterns
+    // Get expanded measures for ALL patterns (unified logic)
     const expandedMeasures = React.useMemo(() => {
-        if (!isCustomPattern) return null;
-        // Find the original custom pattern from DB
-        const customP = customPatterns.find(cp => String(cp.id) === String(selectedPatternId));
-        if (!customP) return null;
-        return expandPattern(customP.measures);
-    }, [isCustomPattern, selectedPatternId, customPatterns]);
+        if (!selectedPattern.measures) return null;
+        return expandPattern(selectedPattern.measures);
+    }, [selectedPattern]);
 
     const [disableRecording, setDisableRecording] = useState(false);
     const [editorIsDirty, setEditorIsDirty] = useState(false);
@@ -140,13 +142,14 @@ export const Metronome: React.FC = () => {
     } = useMetronome();
 
     // Effect: Set pattern on engine when selection changes
+    // Now all patterns (presets and custom) have measures, so we always set the pattern
     useEffect(() => {
-        if (isCustomPattern && expandedMeasures) {
+        if (expandedMeasures) {
             setPattern(expandedMeasures);
         } else {
-            setPattern(null); // Use default mode for presets
+            setPattern(null);
         }
-    }, [isCustomPattern, expandedMeasures, setPattern]);
+    }, [expandedMeasures, setPattern]);
 
     const { isMicReady, startAnalysis, stopAnalysis, clearOnsets, onsets, mediaStream, analyzer } = useAudioAnalysis({
         audioContext,
@@ -1347,7 +1350,7 @@ export const Metronome: React.FC = () => {
                                 <SubdivisionControl
                                     subdivision={subdivision}
                                     onChange={handleSubdivisionChange}
-                                    disabled={isCustomPattern}
+                                    disabled={selectedPattern.isCustom}
                                 />
                                 <div style={{ fontSize: '0.85rem', color: 'var(--color-text-dim)', fontWeight: 'bold', letterSpacing: '1px' }}>TEMPO</div>
                                 <GapClickControl

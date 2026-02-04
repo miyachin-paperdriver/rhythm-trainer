@@ -98,6 +98,15 @@ export const TimingDeviationGraph: React.FC<TimingDeviationGraphProps> = ({ hits
                 TIMING DEVIATION TREND (FOLDED)
             </h3>
             <svg viewBox={`0 0 ${width} ${height}`} style={{ width: '100%', height: 'auto', maxHeight: '200px' }}>
+                <defs>
+                    <linearGradient id="trendGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#fa8c16" /> {/* +100ms Late (Orange) */}
+                        <stop offset="40%" stopColor="#52c41a" /> {/* Near Perfect (Green) */}
+                        <stop offset="60%" stopColor="#52c41a" /> {/* Near Perfect (Green) */}
+                        <stop offset="100%" stopColor="#fa8c16" /> {/* -100ms Early (Orange) */}
+                    </linearGradient>
+                </defs>
+
                 {/* Background Grid */}
                 {/* Center Line (0ms) */}
                 <line
@@ -130,7 +139,7 @@ export const TimingDeviationGraph: React.FC<TimingDeviationGraphProps> = ({ hits
                     <circle
                         key={i}
                         cx={p.x} cy={p.y} r="3"
-                        fill={p.hit.hand === 'R' ? 'var(--color-primary)' : 'var(--color-secondary)'}
+                        fill={p.hit.hand === 'R' ? 'var(--color-primary)' : 'var(--color-accent)'}
                         opacity="0.4"
                     />
                 ))}
@@ -140,9 +149,11 @@ export const TimingDeviationGraph: React.FC<TimingDeviationGraphProps> = ({ hits
                     <polyline
                         points={trendLine.map(p => `${p.x},${p.y}`).join(' ')}
                         fill="none"
-                        stroke="#fff"
-                        strokeWidth="2"
-                        strokeOpacity="0.8"
+                        stroke="url(#trendGradient)"
+                        strokeWidth="3"
+                        strokeOpacity="0.9"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
                     />
                 )}
 
@@ -164,15 +175,15 @@ export const TimingDeviationGraph: React.FC<TimingDeviationGraphProps> = ({ hits
             </svg>
             <div style={{ display: 'flex', justifyContent: 'center', gap: '1rem', marginTop: '5px', fontSize: '0.75rem', color: 'var(--color-text-dim)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--color-primary)' }}></div>
+                    <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--color-accent)' }}></div>
                     Left
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--color-secondary)' }}></div>
+                    <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--color-primary)' }}></div>
                     Right
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    <div style={{ width: 20, height: 2, background: '#fff' }}></div>
+                    <div style={{ width: 20, height: 3, background: 'linear-gradient(to right, #fa8c16, #52c41a, #fa8c16)' }}></div>
                     Trend
                 </div>
             </div>

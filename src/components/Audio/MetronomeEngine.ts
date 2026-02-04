@@ -41,6 +41,9 @@ export class MetronomeEngine {
         // 1. Force unlock immediately within user gesture (Sync)
         this.unlockAudioContext();
 
+        // START Silent Audio to holding "Playback" Session
+        this.startSilentAudio();
+
         // 2. Resume context
         if (this.audioContext?.state === 'suspended') {
             await this.audioContext.resume();
@@ -69,30 +72,39 @@ export class MetronomeEngine {
         source.buffer = buffer;
         source.connect(this.audioContext.destination);
         source.start(0);
-
-        // Also trigger HTML5 Audio to bypass Silent Switch (iOS)
-        this.bypassSilentSwitch();
     }
 
-    private bypassSilentSwitch() {
-        // Play a tiny silent file to force the Audio Session category to 'Playback'
-        // appending to DOM might help with iOS persistence
-        const audio = document.createElement('audio');
-        audio.src = 'data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//OEAAAAAAAAAAAAAAAAAAAAAAAASW5mbwAAAA8AAAAEAAABIADAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV6urq6urq6urq6urq6urq6urq6urq6urq6v////////////////////////////////8AAAAATGF2YzU4LjkxAAAAAAAAAAAAAAAAJAAAAAAAAAAAASAAAAAA//OEZAAAAAABIAAAACABHAAAAAAAAAAAAAA//OEZAAAAAABIAAAACABHAAAAAAAAAAAAAA//OEZAAAAAABIAAAACABHAAAAAAAAAAAAAA//OEZAAAAAABIAAAACABHAAAAAAAAAAAAAA//OEZAAAAAABIAAAACABHAAAAAAAAAAAAAA//OEZAAAAAABIAAAACABHAAAAAAAAAAAAAA';
-        audio.volume = 0.01;
-        audio.style.display = 'none';
-        document.body.appendChild(audio);
+    private silentAudio: HTMLAudioElement | null = null;
 
-        audio.play().then(() => {
-            // Cleanup after a bit? Or keep it? keeping it for a few seconds might be safer.
-            setTimeout(() => {
-                audio.pause();
-                audio.remove();
-            }, 3000); // 3 seconds of "playback mode" enforcement
-        }).catch(e => {
-            console.warn('Silent switch bypass failed', e);
-            audio.remove();
+    private startSilentAudio() {
+        if (!this.silentAudio) {
+            this.silentAudio = document.createElement('audio');
+            // Tiny silent MP3
+            this.silentAudio.src = 'data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//OEAAAAAAAAAAAAAAAAAAAAAAAASW5mbwAAAA8AAAAEAAABIADAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV6urq6urq6urq6urq6urq6urq6urq6urq6v////////////////////////////////8AAAAATGF2YzU4LjkxAAAAAAAAAAAAAAAAJAAAAAAAAAAAASAAAAAA//OEZAAAAAABIAAAACABHAAAAAAAAAAAAAA//OEZAAAAAABIAAAACABHAAAAAAAAAAAAAA//OEZAAAAAABIAAAACABHAAAAAAAAAAAAAA//OEZAAAAAABIAAAACABHAAAAAAAAAAAAAA//OEZAAAAAABIAAAACABHAAAAAAAAAAAAAA//OEZAAAAAABIAAAACABHAAAAAAAAAAAAAA';
+            // Important: Loop it so it stays active
+            this.silentAudio.loop = true;
+            this.silentAudio.volume = 0.01;
+            // playsInline might help
+            this.silentAudio.setAttribute('playsinline', 'true');
+            // display none
+            this.silentAudio.style.display = 'none';
+            document.body.appendChild(this.silentAudio);
+        }
+
+        // Always try to play
+        this.silentAudio.play().catch(e => {
+            console.warn('[MetronomeEngine] Silent Audio Play Failed:', e);
         });
+    }
+
+    private stopSilentAudio() {
+        if (this.silentAudio) {
+            this.silentAudio.pause();
+            this.silentAudio.currentTime = 0;
+            // Optionally remove it, or keep it for next time. 
+            // Keeping it is safer for reuse, but if we want to clean up:
+            // For now, let's keep it in DOM but paused. 
+        }
     }
 
     public stop() {
@@ -101,6 +113,7 @@ export class MetronomeEngine {
             window.clearTimeout(this.timerID);
             this.timerID = undefined;
         }
+        this.stopSilentAudio();
     }
 
     public setBpm(bpm: number) { this.bpm = bpm; }

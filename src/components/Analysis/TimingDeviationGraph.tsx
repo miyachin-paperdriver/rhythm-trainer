@@ -99,11 +99,11 @@ export const TimingDeviationGraph: React.FC<TimingDeviationGraphProps> = ({ hits
             </h3>
             <svg viewBox={`0 0 ${width} ${height}`} style={{ width: '100%', height: 'auto', maxHeight: '200px' }}>
                 <defs>
-                    <linearGradient id="trendGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#fa8c16" /> {/* +100ms Late (Orange) */}
+                    <linearGradient id="trendGradient" x1="0" y1="0" x2="0" y2="200" gradientUnits="userSpaceOnUse">
+                        <stop offset="0%" stopColor="#fa8c16" /> {/* +100ms Late (Orange) - Top (Y=0) */}
                         <stop offset="40%" stopColor="#52c41a" /> {/* Near Perfect (Green) */}
                         <stop offset="60%" stopColor="#52c41a" /> {/* Near Perfect (Green) */}
-                        <stop offset="100%" stopColor="#fa8c16" /> {/* -100ms Early (Orange) */}
+                        <stop offset="100%" stopColor="#fa8c16" /> {/* -100ms Early (Orange) - Bottom (Y=200) */}
                     </linearGradient>
                 </defs>
 

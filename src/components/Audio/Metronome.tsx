@@ -45,7 +45,7 @@ export const Metronome: React.FC = () => {
             id: p.id,
             name: p.name,
             sequence: p.sequence as Note[], // For display compatibility
-            measures: patternToMeasures(p, 4), // Convert to measures format
+            measures: patternToMeasures(p, 1), // Convert to measures format (quarter notes)
             isCustom: false
         }));
         const customs = customPatterns.map(cp => ({

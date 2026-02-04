@@ -14,7 +14,8 @@ export const TimingDeviationGraph: React.FC<TimingDeviationGraphProps> = ({ hits
 
     // Y-Axis Range (ms)
     // Dynamic range or fixed? Let's fix it to +/- 100ms for consistency suitable for visual feedback
-    const maxDeviation = 100;
+    // Dynamic range or fixed? Let's fix it to +/- 50ms for consistency suitable for visual feedback
+    const maxDeviation = 50;
 
     // Process data
     const { points, trendLine } = useMemo(() => {

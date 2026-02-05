@@ -474,12 +474,12 @@ export const PatternEditor: React.FC<PatternEditorProps> = ({
                         </div>
 
                         {/* ノートグリッド */}
-                        <div style={{
-                            display: 'grid',
-                            gridTemplateColumns: `repeat(${measure.notes.length}, 1fr)`,
-                            gap: '3px'
-                        }}>
-                            {measure.notes.map((note, noteIndex) => {
+                        {(() => {
+                            // 三連符(subdivision=3)と16分音符(subdivision=4)は2行表示
+                            const useTwoRows = measure.subdivision >= 3;
+                            const notesPerRow = useTwoRows ? measure.notes.length / 2 : measure.notes.length;
+
+                            const renderNoteButton = (note: Note, noteIndex: number) => {
                                 const isCursor = cursorPosition.measure === measureIndex && cursorPosition.note === noteIndex;
                                 const isBeatStart = noteIndex % measure.subdivision === 0;
 
@@ -513,8 +513,41 @@ export const PatternEditor: React.FC<PatternEditorProps> = ({
                                         {note}
                                     </button>
                                 );
-                            })}
-                        </div>
+                            };
+
+                            if (useTwoRows) {
+                                const firstRowNotes = measure.notes.slice(0, notesPerRow);
+                                const secondRowNotes = measure.notes.slice(notesPerRow);
+                                return (
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                                        <div style={{
+                                            display: 'grid',
+                                            gridTemplateColumns: `repeat(${notesPerRow}, 1fr)`,
+                                            gap: '3px'
+                                        }}>
+                                            {firstRowNotes.map((note, idx) => renderNoteButton(note, idx))}
+                                        </div>
+                                        <div style={{
+                                            display: 'grid',
+                                            gridTemplateColumns: `repeat(${notesPerRow}, 1fr)`,
+                                            gap: '3px'
+                                        }}>
+                                            {secondRowNotes.map((note, idx) => renderNoteButton(note, notesPerRow + idx))}
+                                        </div>
+                                    </div>
+                                );
+                            }
+
+                            return (
+                                <div style={{
+                                    display: 'grid',
+                                    gridTemplateColumns: `repeat(${measure.notes.length}, 1fr)`,
+                                    gap: '3px'
+                                }}>
+                                    {measure.notes.map((note, noteIndex) => renderNoteButton(note, noteIndex))}
+                                </div>
+                            );
+                        })()}
                     </div>
                 ))}
             </div>

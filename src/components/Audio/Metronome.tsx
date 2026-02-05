@@ -139,7 +139,7 @@ export const Metronome: React.FC = () => {
         setSubdivision, setGapClick, setPattern,
         audioContext,
         initializeAudio
-    } = useMetronome();
+    } = useMetronome({ audioLatency });
 
     // Effect: Set pattern on engine when selection changes
     // Now all patterns (presets and custom) have measures, so we always set the pattern

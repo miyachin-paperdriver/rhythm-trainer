@@ -2,7 +2,13 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { MetronomeEngine, type Subdivision } from '../components/Audio/MetronomeEngine';
 import type { MeasureData } from '../utils/patterns';
 
-export const useMetronome = () => {
+interface UseMetronomeOptions {
+    audioLatency?: number; // Total roundtrip latency in ms
+}
+
+export const useMetronome = (options: UseMetronomeOptions = {}) => {
+    const { audioLatency = 0 } = options;
+
     const engineRef = useRef<MetronomeEngine | null>(null);
     const [isPlaying, setIsPlaying] = useState(false);
     const [bpm, setBpm] = useState(120);
@@ -15,6 +21,12 @@ export const useMetronome = () => {
     // Expose context via state
     const [audioContext, setAudioContext] = useState<AudioContext | null>(null);
 
+    // Store audioLatency in ref for use in callback
+    const audioLatencyRef = useRef(audioLatency);
+    useEffect(() => {
+        audioLatencyRef.current = audioLatency;
+    }, [audioLatency]);
+
     useEffect(() => {
         engineRef.current = new MetronomeEngine((beat, time, _step, muted, countIn, _subBeat, tickIndex) => {
             const ctx = engineRef.current?.audioContext;
@@ -22,6 +34,10 @@ export const useMetronome = () => {
 
             const now = ctx.currentTime;
             const diff = time - now;
+
+            // Calculate visual delay: diff + estimated output latency
+            // audioLatency = output + input, so we approximate output as half
+            const outputLatencyMs = audioLatencyRef.current / 2;
 
             // Define update function to avoid duplication
             const updateState = () => {
@@ -44,8 +60,11 @@ export const useMetronome = () => {
                 setIsCountIn(countIn);
             };
 
-            if (diff > 0) {
-                setTimeout(updateState, diff * 1000);
+            // Total delay = scheduled time diff + output latency
+            const totalDelayMs = diff * 1000 + outputLatencyMs;
+
+            if (totalDelayMs > 0) {
+                setTimeout(updateState, totalDelayMs);
             } else {
                 updateState();
             }
@@ -56,6 +75,7 @@ export const useMetronome = () => {
             engineRef.current?.stop();
         };
     }, []);
+
 
     const start = useCallback(() => {
         // Reset state immediately to prevent "flash" of previous state

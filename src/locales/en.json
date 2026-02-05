@@ -14,7 +14,10 @@
         "lower_is_more_sensitive": "Lower is more sensitive. Increase if too noisy.",
         "theme": "Theme",
         "dark": "Dark 🌙",
-        "light": "Light ☀️"
+        "light": "Light ☀️",
+        "visual_effects": "Visual Effects",
+        "effects_on": "On ✨",
+        "effects_off": "Off"
     },
     "tabs": {
         "training": "Training",

@@ -5,6 +5,10 @@ interface MetronomeSettingsProps {
     currentTheme: 'light' | 'dark'; // Controlled state
     onThemeChange: (theme: 'light' | 'dark') => void;
 
+    // Visual Effects
+    visualEffectsEnabled: boolean;
+    onVisualEffectsChange: (enabled: boolean) => void;
+
     // Latency Calibration
     audioLatency: number;
     onAudioLatencyChange: (ms: number) => void;
@@ -25,6 +29,8 @@ interface MetronomeSettingsProps {
 export const MetronomeSettings: React.FC<MetronomeSettingsProps> = ({
     currentTheme,
     onThemeChange,
+    visualEffectsEnabled,
+    onVisualEffectsChange,
     audioLatency,
     onAudioLatencyChange,
     onRunAutoCalibration,
@@ -197,6 +203,22 @@ export const MetronomeSettings: React.FC<MetronomeSettingsProps> = ({
                         transition: 'all 0.2s'
                     }}>
                         {currentTheme === 'dark' ? t('settings.dark') : t('settings.light')}
+                    </button>
+                </div>
+
+                {/* Visual Effects */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <label style={{ fontSize: '0.85rem', color: 'var(--color-text-dim)' }}>{t('settings.visual_effects')}</label>
+                    <button onClick={() => onVisualEffectsChange(!visualEffectsEnabled)} style={{
+                        background: visualEffectsEnabled ? 'var(--color-primary)' : 'var(--color-surface)',
+                        border: '1px solid var(--color-border)',
+                        color: visualEffectsEnabled ? '#fff' : 'var(--color-text)',
+                        borderRadius: '20px',
+                        fontWeight: 'bold',
+                        padding: '6px 16px',
+                        transition: 'all 0.2s'
+                    }}>
+                        {visualEffectsEnabled ? t('settings.effects_on') : t('settings.effects_off')}
                     </button>
                 </div>
 

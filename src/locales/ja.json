@@ -14,7 +14,10 @@
         "lower_is_more_sensitive": "数値が小さいほど敏感になります。ノイズを拾う場合は数値を上げてください。",
         "theme": "テーマ",
         "dark": "ダーク 🌙",
-        "light": "ライト ☀️"
+        "light": "ライト ☀️",
+        "visual_effects": "ビジュアルエフェクト",
+        "effects_on": "オン ✨",
+        "effects_off": "オフ"
     },
     "tabs": {
         "training": "トレーニング",

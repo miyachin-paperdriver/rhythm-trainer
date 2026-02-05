@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import type { Note, MeasureData } from '../../utils/patterns';
 import type { Subdivision } from '../Audio/MetronomeEngine';
 
@@ -10,29 +11,32 @@ interface PatternVisualizerProps {
     currentStep: number;
     isPlaying: boolean;
     subdivision: Subdivision;
-    expandedMeasures?: MeasureData[] | null; // For custom patterns
+    expandedMeasures?: MeasureData[] | null;
+    effectsEnabled?: boolean;
+    theme?: 'light' | 'dark';
 }
 
-export const PatternVisualizer: React.FC<PatternVisualizerProps> = ({ pattern, currentStep, isPlaying, subdivision, expandedMeasures }) => {
-    // If expandedMeasures provided (custom pattern), use per-measure subdivision
-    // Otherwise fall back to preset mode with global subdivision
+export const PatternVisualizer: React.FC<PatternVisualizerProps> = ({
+    pattern,
+    currentStep,
+    isPlaying,
+    subdivision,
+    expandedMeasures,
+    effectsEnabled = true,
+    theme = 'light'
+}) => {
     const isCustomPattern = !!expandedMeasures && expandedMeasures.length > 0;
-
-    // For presets: 4 bars * 4 beats * subdivision
     const presetNotesPerBar = 4 * subdivision;
     const presetTotalBars = 4;
     const presetTotalNotes = presetTotalBars * presetNotesPerBar;
 
-    // Build display data
     const displayData = useMemo(() => {
         if (isCustomPattern && expandedMeasures) {
-            // Custom pattern: each measure has its own subdivision
             let globalIdx = 0;
             const bars = expandedMeasures.map((measure, measureIdx) => {
                 const notes: { hand: Note; index: number; subDivision: number }[] = [];
                 const sub = measure.subdivision as Subdivision;
                 const notesPerBeat = sub;
-                // 4 beats per measure
                 for (let beatIdx = 0; beatIdx < 4; beatIdx++) {
                     for (let subIdx = 0; subIdx < notesPerBeat; subIdx++) {
                         const noteIndex = beatIdx * notesPerBeat + subIdx;
@@ -44,7 +48,6 @@ export const PatternVisualizer: React.FC<PatternVisualizerProps> = ({ pattern, c
             });
             return { bars, totalNotes: globalIdx };
         } else {
-            // Preset mode
             const bars = [];
             for (let i = 0; i < presetTotalBars; i++) {
                 const notes: { hand: Note; index: number; subDivision: number }[] = [];
@@ -62,8 +65,32 @@ export const PatternVisualizer: React.FC<PatternVisualizerProps> = ({ pattern, c
         }
     }, [isCustomPattern, expandedMeasures, pattern, subdivision, presetNotesPerBar, presetTotalBars, presetTotalNotes]);
 
-    // Active index handling (wrap around totalNotes)
     const normalizedActiveIndex = currentStep % displayData.totalNotes;
+
+    // Animation variants for notes
+    const noteVariants = effectsEnabled ? {
+        inactive: { scale: 1, opacity: 0.6 },
+        active: {
+            scale: 1.1,
+            opacity: 1,
+            transition: { type: 'spring' as const, stiffness: 500, damping: 20 }
+        },
+        rest: { scale: 1, opacity: 0.3 }
+    } : undefined;
+
+    // Glow effect for dark theme
+    const getGlowStyle = (isActive: boolean, isRest: boolean, isRight: boolean) => {
+        if (!effectsEnabled || !isActive || isRest) return {};
+        if (theme === 'dark') {
+            const color = isRight ? 'var(--color-primary)' : 'var(--color-accent)';
+            return {
+                boxShadow: `0 0 12px ${color}, 0 0 24px ${color}40`
+            };
+        }
+        return {
+            boxShadow: '0 2px 8px rgba(0,0,0,0.15)'
+        };
+    };
 
     return (
         <div style={{
@@ -82,10 +109,7 @@ export const PatternVisualizer: React.FC<PatternVisualizerProps> = ({ pattern, c
 
             <div className="visualizer-grid">
                 {displayData.bars.map((bar) => (
-                    <div
-                        key={bar.measureIdx}
-                        className="visualizer-bar"
-                    >
+                    <div key={bar.measureIdx} className="visualizer-bar">
                         <div style={{
                             fontSize: '0.7rem',
                             color: 'var(--color-text-dim)',
@@ -100,40 +124,62 @@ export const PatternVisualizer: React.FC<PatternVisualizerProps> = ({ pattern, c
                         <div style={{
                             display: 'grid',
                             gridTemplateColumns: `repeat(${bar.notes.length}, 1fr)`,
-                            gap: '2px', // Tighter gap
+                            gap: '2px',
                             width: '100%'
                         }}>
-                            {bar.notes.map((item) => {
-                                const isActive = isPlaying && normalizedActiveIndex === item.index;
-                                const isRest = item.hand === '-';
-                                const isRight = item.hand === 'R';
+                            <AnimatePresence mode="sync">
+                                {bar.notes.map((item) => {
+                                    const isActive = isPlaying && normalizedActiveIndex === item.index;
+                                    const isRest = item.hand === '-';
+                                    const isRight = item.hand === 'R';
 
-                                return (
-                                    <div
-                                        key={item.index}
-                                        style={{
-                                            height: '2rem', // Fixed compact height
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            justifyContent: 'center',
-                                            borderRadius: 'var(--radius-sm)',
-                                            background: isActive
-                                                ? (isRest ? 'var(--color-surface-hover)' : isRight ? 'var(--color-primary)' : 'var(--color-accent)')
-                                                : isRest ? 'transparent' : 'var(--color-surface-hover)',
-                                            color: isActive ? (isRest ? 'var(--color-text-dim)' : '#fff') : (isRest ? 'var(--color-text-dim)' : isRight ? 'var(--color-primary)' : 'var(--color-accent)'),
-                                            border: isRest ? '1px dashed var(--color-border)' : 'none',
-                                            fontWeight: 'bold',
-                                            fontSize: item.subDivision >= 4 ? '0.8rem' : '1rem',
-                                            opacity: isActive ? 1 : (isRest ? 0.3 : 0.6),
-                                            transform: isActive ? 'scale(1.05)' : 'scale(1)',
-                                            boxShadow: isActive && !isRest ? '0 0 4px rgba(255,255,255,0.4)' : 'none',
-                                            transition: 'all 0.05s',
-                                        }}
-                                    >
-                                        {item.hand}
-                                    </div>
-                                );
-                            })}
+                                    const baseStyle: React.CSSProperties = {
+                                        height: '2rem',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        borderRadius: 'var(--radius-sm)',
+                                        background: isActive
+                                            ? (isRest ? 'var(--color-surface-hover)' : isRight ? 'var(--color-primary)' : 'var(--color-accent)')
+                                            : isRest ? 'transparent' : 'var(--color-surface-hover)',
+                                        color: isActive ? (isRest ? 'var(--color-text-dim)' : '#fff') : (isRest ? 'var(--color-text-dim)' : isRight ? 'var(--color-primary)' : 'var(--color-accent)'),
+                                        border: isRest ? '1px dashed var(--color-border)' : 'none',
+                                        fontWeight: 'bold',
+                                        fontSize: item.subDivision >= 4 ? '0.8rem' : '1rem',
+                                        zIndex: isActive ? 10 : 1,
+                                        position: 'relative',
+                                        ...getGlowStyle(isActive, isRest, isRight)
+                                    };
+
+                                    if (effectsEnabled) {
+                                        return (
+                                            <motion.div
+                                                key={item.index}
+                                                variants={noteVariants}
+                                                initial={false}
+                                                animate={isActive ? 'active' : isRest ? 'rest' : 'inactive'}
+                                                style={baseStyle}
+                                            >
+                                                {item.hand}
+                                            </motion.div>
+                                        );
+                                    }
+
+                                    return (
+                                        <div
+                                            key={item.index}
+                                            style={{
+                                                ...baseStyle,
+                                                opacity: isActive ? 1 : (isRest ? 0.3 : 0.6),
+                                                transform: isActive ? 'scale(1.05)' : 'scale(1)',
+                                                transition: 'all 0.05s'
+                                            }}
+                                        >
+                                            {item.hand}
+                                        </div>
+                                    );
+                                })}
+                            </AnimatePresence>
                         </div>
                     </div>
                 ))}

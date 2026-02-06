@@ -88,5 +88,52 @@
         "hits": "Hits",
         "pts": "pts",
         "no_data": "No Data"
+    },
+    "timer": {
+        "title": "Timer",
+        "min_3": "3 min",
+        "min_5": "5 min",
+        "custom": "Custom",
+        "off": "Off",
+        "remaining": "Rem:",
+        "minute": "min",
+        "second": "sec",
+        "set": "Set",
+        "complete": "Timer Complete"
+    },
+    "gap_click": {
+        "title": "Gap Click Settings",
+        "enable": "Enable Gap Click",
+        "play_bars": "Play Bars",
+        "mute_bars": "Mute Bars",
+        "cancel": "Cancel",
+        "apply": "Apply"
+    },
+    "completion_messages": {
+        "s": [
+            "The metronome is jealous.",
+            "Time obeys you.",
+            "Scary perfect."
+        ],
+        "a": [
+            "Great rhythm!",
+            "Keep it up.",
+            "Felt the groove."
+        ],
+        "b": [
+            "Good practice.",
+            "Getting stable.",
+            "You can do more."
+        ],
+        "c": [
+            "Good job.",
+            "Consistency is key.",
+            "Getting better step by step."
+        ],
+        "d": [
+            "Don't worry!",
+            "Practice makes perfect.",
+            "Let's try again."
+        ]
     }
 }

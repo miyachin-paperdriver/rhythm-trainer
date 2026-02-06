@@ -1,5 +1,6 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
+import { version } from '../../../package.json';
 
 interface MetronomeSettingsProps {
     currentTheme: 'light' | 'dark'; // Controlled state
@@ -222,6 +223,11 @@ export const MetronomeSettings: React.FC<MetronomeSettingsProps> = ({
                     </button>
                 </div>
 
+            </div>
+
+            {/* Version */}
+            <div style={{ textAlign: 'center', marginTop: '2rem', color: 'var(--color-text-dim)', fontSize: '0.8rem' }}>
+                v{version}
             </div>
         </div>
     );

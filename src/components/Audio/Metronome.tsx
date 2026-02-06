@@ -153,6 +153,90 @@ export const Metronome: React.FC = () => {
         initializeAudio
     } = useMetronome({ audioLatency });
 
+    // timerDuration is in MINUTES, timerRemaining is in SECONDS
+    const [timerDuration, setTimerDuration] = useState<number | null>(null); // minutes
+    const [timerRemaining, setTimerRemaining] = useState<number>(0); // seconds
+    const [stopRequestPending, setStopRequestPending] = useState(false);
+    const [showTimerDialog, setShowTimerDialog] = useState(false);
+    const [completionMessage, setCompletionMessage] = useState<string | null>(null);
+    const [showCompletionOverlay, setShowCompletionOverlay] = useState(false);
+    const [customTimerInput, setCustomTimerInput] = useState("10");
+
+    // Initialize/Reset remaining time when duration changes
+    useEffect(() => {
+        if (timerDuration !== null) {
+            setTimerRemaining(timerDuration * 60); // Convert minutes to seconds
+            setStopRequestPending(false);
+        } else {
+            setTimerRemaining(0);
+            setStopRequestPending(false);
+        }
+    }, [timerDuration]);
+
+    // Countdown Effect
+    useEffect(() => {
+        let interval: any;
+        if (isPlaying && timerDuration !== null && timerRemaining > 0 && !isCountIn) {
+            interval = setInterval(() => {
+                setTimerRemaining(prev => {
+                    const next = prev - 1;
+                    if (next <= 0) {
+                        setStopRequestPending(true);
+                        return 0;
+                    }
+                    return next;
+                });
+            }, 1000);
+        }
+        return () => clearInterval(interval);
+    }, [isPlaying, timerDuration, timerRemaining, isCountIn]);
+
+    // Loop Stop Logic - Stop at the start of the next loop (step 0) after timer expires
+    const prevStepRef = React.useRef(currentStep);
+    useEffect(() => {
+        if (isPlaying && stopRequestPending) {
+            // Detect loop boundary: when currentStep goes from a higher value back to 0
+            const wasHigherStep = prevStepRef.current > 0;
+            const isNowAtZero = currentStep === 0;
+
+            if (wasHigherStep && isNowAtZero) {
+                stop();
+                handleTimerCompletion();
+            }
+        }
+        prevStepRef.current = currentStep;
+    }, [currentStep, isPlaying, stopRequestPending, stop]);
+
+    // Fallback: if stopRequestPending and timer has been at 0 for 5 seconds, force stop
+    useEffect(() => {
+        let fallbackTimer: any;
+        if (isPlaying && stopRequestPending && timerRemaining <= 0) {
+            fallbackTimer = setTimeout(() => {
+                if (isPlaying && stopRequestPending) {
+                    stop();
+                    handleTimerCompletion();
+                }
+            }, 5000);
+        }
+        return () => clearTimeout(fallbackTimer);
+    }, [isPlaying, stopRequestPending, timerRemaining, stop]);
+
+    const handleTimerCompletion = () => {
+        // Prepare completion message
+        // We need to wait a tick for stats to maybe update? 
+        // Or just use what we have. Rank is calculated in real-time in SessionManager usually?
+        // Actually lastSessionStats is from *previous* session until we update.
+        // But we just called stop().
+
+        // Let's create a temporary effect or just trigger visualization now.
+        setShowCompletionOverlay(true);
+        setStopRequestPending(false);
+        setTimerRemaining(0);
+        // Message will be generated in the render or effect based on rank
+    };
+
+
+
     // Effect: Set pattern on engine when selection changes
     // Now all patterns (presets and custom) have measures, so we always set the pattern
     useEffect(() => {
@@ -737,6 +821,31 @@ export const Metronome: React.FC = () => {
         disableRecording
     });
 
+    // Manage Completion Overlay (Msg generation + Auto-hide)
+    useEffect(() => {
+        if (showCompletionOverlay) {
+            // 1. Generate Message if not set and data is ready
+            if (lastSessionStats?.total?.rank && !completionMessage) {
+                const rank = lastSessionStats.total.rank;
+                const msgs = t(`completion_messages.${rank.toLowerCase()}`, { returnObjects: true });
+                let selected = "Good job!";
+                if (Array.isArray(msgs) && msgs.length > 0) {
+                    selected = msgs[Math.floor(Math.random() * msgs.length)];
+                } else if (typeof msgs === 'string') {
+                    selected = msgs;
+                }
+                setCompletionMessage(selected);
+            }
+
+            // 2. Auto-hide timer
+            const timer = setTimeout(() => {
+                setShowCompletionOverlay(false);
+                setCompletionMessage(null);
+            }, 5000);
+            return () => clearTimeout(timer);
+        }
+    }, [showCompletionOverlay, lastSessionStats, completionMessage, t]);
+
     // Session Summary Tab State
     const [summaryTab, setSummaryTab] = useState<'total' | 'left' | 'right'>('total');
 
@@ -826,6 +935,14 @@ export const Metronome: React.FC = () => {
             setBeatHistory([]); // Clear history
             recordingStartedRef.current = false;
             setSummaryTab('total'); // Reset tab
+
+            // Reset Timer Logic
+            if (timerDuration !== null) {
+                setTimerRemaining(timerDuration * 60);
+            }
+            setStopRequestPending(false);
+            setShowCompletionOverlay(false);
+            setCompletionMessage(null);
 
             // ALWAYS Initialize Audio & Request Mic (even for No Rec)
             // This forces text iOS Audio Session to "PlayAndRecord", which is the only way
@@ -919,6 +1036,73 @@ export const Metronome: React.FC = () => {
                 effectsEnabled={visualEffectsEnabled}
                 fullscreen={true}
             />
+
+            {/* Timer Completion Overlay */}
+            {showCompletionOverlay && (
+                <div style={{
+                    position: 'fixed',
+                    top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
+                    zIndex: 2000,
+                    pointerEvents: 'none',
+                    display: 'flex', flexDirection: 'column', alignItems: 'center',
+                    justifyContent: 'center',
+                    width: '100%'
+                }}>
+                    <div style={{
+                        background: 'rgba(0,0,0,0.85)',
+                        padding: '2rem',
+                        borderRadius: '1rem',
+                        border: '2px solid var(--color-primary)',
+                        textAlign: 'center',
+                        animation: 'popIn 0.3s ease-out'
+                    }}>
+                        <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#fff', marginBottom: '1rem' }}>
+                            {t('timer.complete')}
+                        </div>
+                        {lastSessionStats && lastSessionStats.total && completionMessage && (
+                            <>
+                                <div style={{
+                                    fontSize: '4rem',
+                                    fontWeight: '900',
+                                    color: lastSessionStats.total.rank === 'S' ? '#faad14' :
+                                        lastSessionStats.total.rank === 'A' ? '#52c41a' :
+                                            lastSessionStats.total.rank === 'B' ? '#1890ff' : '#fa8c16',
+                                    marginBottom: '0.5rem',
+                                    textShadow: '0 0 20px rgba(255,255,255,0.5)'
+                                }}>
+                                    {lastSessionStats.total.rank}
+                                </div>
+                                <div style={{ fontSize: '1.2rem', color: '#eee', fontStyle: 'italic' }}>
+                                    {completionMessage}
+                                </div>
+                            </>
+                        )}
+                    </div>
+                </div>
+            )}
+
+            {/* Timer Running Overlay */}
+            {
+                isPlaying && timerDuration !== null && timerRemaining >= 0 && (
+                    <div style={{
+                        position: 'absolute',
+                        top: '10px', left: '50%', transform: 'translateX(-50%)',
+                        zIndex: 500,
+                        background: timerRemaining <= 3 && stopRequestPending ? 'rgba(255, 77, 79, 0.9)' : 'rgba(0,0,0,0.6)',
+                        color: '#fff',
+                        padding: '0.5rem 1rem',
+                        borderRadius: '2rem',
+                        fontWeight: 'bold',
+                        fontFamily: 'monospace',
+                        fontSize: '1.2rem',
+                        border: timerRemaining <= 0 ? '2px solid #ff4d4f' : '1px solid rgba(255,255,255,0.2)',
+                        transition: 'background 0.3s',
+                        boxShadow: timerRemaining <= 10 && timerRemaining > 0 ? '0 0 10px rgba(255,255,255,0.3)' : 'none'
+                    }}>
+                        {t('timer.remaining')}: {Math.max(0, Math.floor(timerRemaining / 60))}{t('timer.minute')} {Math.max(0, timerRemaining % 60).toString().padStart(2, '0')}{t('timer.second')}
+                    </div>
+                )
+            }
 
             {/* Tabs */}
             <div style={{ display: 'flex', marginBottom: '1rem', borderBottom: '1px solid var(--color-surface-hover)', padding: '0 0.5rem', gap: '2px' }}>
@@ -1016,254 +1200,119 @@ export const Metronome: React.FC = () => {
             </div>
 
             {/* Global Calibration Overlays - Visible across all tabs */}
-            {(calibrationState.active || micCalibState.active) && (
-                <div style={{
-                    position: 'fixed',
-                    top: 0, left: 0, right: 0, bottom: 0,
-                    background: 'rgba(0,0,0,0.7)',
-                    zIndex: 1000,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    backdropFilter: 'blur(4px)'
-                }}>
+            {
+                (calibrationState.active || micCalibState.active) && (
                     <div style={{
-                        background: 'var(--color-surface)',
-                        borderRadius: '1rem',
-                        padding: '1.5rem',
-                        width: '90%',
-                        maxWidth: '360px',
-                        boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
-                        border: '2px solid var(--color-primary)'
+                        position: 'fixed',
+                        top: 0, left: 0, right: 0, bottom: 0,
+                        background: 'rgba(0,0,0,0.7)',
+                        zIndex: 1000,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        backdropFilter: 'blur(4px)'
                     }}>
-                        {/* Latency Calibration UI */}
-                        {calibrationState.active && (
-                            <>
-                                <div style={{
-                                    fontSize: '1.2rem',
-                                    fontWeight: 'bold',
-                                    color: 'var(--color-primary)',
-                                    marginBottom: '1rem',
-                                    textAlign: 'center'
-                                }}>
-                                    {t('calibration.latency_title')}
-                                </div>
-
-                                {/* Step indicator */}
-                                <div style={{
-                                    background: 'var(--color-surface-hover)',
-                                    borderRadius: '0.5rem',
-                                    padding: '1rem',
-                                    marginBottom: '1rem'
-                                }}>
+                        <div style={{
+                            background: 'var(--color-surface)',
+                            borderRadius: '1rem',
+                            padding: '1.5rem',
+                            width: '90%',
+                            maxWidth: '360px',
+                            boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
+                            border: '2px solid var(--color-primary)'
+                        }}>
+                            {/* Latency Calibration UI */}
+                            {calibrationState.active && (
+                                <>
                                     <div style={{
-                                        fontSize: '1.1rem',
+                                        fontSize: '1.2rem',
                                         fontWeight: 'bold',
-                                        marginBottom: '0.5rem',
-                                        color: 'var(--color-text)'
+                                        color: 'var(--color-primary)',
+                                        marginBottom: '1rem',
+                                        textAlign: 'center'
                                     }}>
-                                        {t('calibration.step_of')} {calibrationState.count + 1}/5
+                                        {t('calibration.latency_title')}
                                     </div>
+
+                                    {/* Step indicator */}
                                     <div style={{
-                                        fontSize: '0.95rem',
-                                        color: 'var(--color-text-dim)'
-                                    }}>
-                                        {calibrationState.status === 'waiting_mic' && t('calibration.latency_step_prep')}
-                                        {calibrationState.status === 'warmup' && t('calibration.latency_step_warmup')}
-                                        {(calibrationState.status === 'starting' || calibrationState.status === 'listening') && t('calibration.latency_step_listen')}
-                                    </div>
-                                </div>
-
-                                {/* Tip */}
-                                <div style={{
-                                    background: 'rgba(250, 173, 20, 0.15)',
-                                    border: '1px solid rgba(250, 173, 20, 0.3)',
-                                    borderRadius: '0.5rem',
-                                    padding: '0.75rem',
-                                    marginBottom: '1rem',
-                                    fontSize: '0.9rem',
-                                    color: '#faad14',
-                                    textAlign: 'center'
-                                }}>
-                                    {t('calibration.latency_tip')}
-                                </div>
-
-                                {/* Progress bar */}
-                                <div style={{
-                                    width: '100%',
-                                    height: '8px',
-                                    background: 'var(--color-border)',
-                                    borderRadius: 'var(--radius-sm)',
-                                    marginBottom: '1rem',
-                                    overflow: 'hidden'
-                                }}>
-                                    <div style={{
-                                        width: `${((calibrationState.count + 1) / 5) * 100}%`,
-                                        height: '100%',
-                                        background: 'var(--color-primary)',
-                                        transition: 'width 0.3s ease'
-                                    }} />
-                                </div>
-
-                                {/* Debug log (collapsible) */}
-                                {debugLog.length > 0 && (
-                                    <details style={{ marginBottom: '1rem' }}>
-                                        <summary style={{ fontSize: '0.8rem', color: 'var(--color-text-dim)', cursor: 'pointer' }}>
-                                            Debug Log
-                                        </summary>
-                                        <div style={{
-                                            fontSize: '0.75rem',
-                                            color: '#aaa',
-                                            background: 'rgba(0,0,0,0.3)',
-                                            padding: '0.5rem',
-                                            borderRadius: 'var(--radius-sm)',
-                                            marginTop: '0.5rem',
-                                            maxHeight: '100px',
-                                            overflowY: 'auto'
-                                        }}>
-                                            {debugLog.map((l, i) => <div key={i}>{l}</div>)}
-                                        </div>
-                                    </details>
-                                )}
-
-                                <button
-                                    onClick={abortCalibration}
-                                    style={{
-                                        width: '100%',
-                                        padding: '0.75rem',
                                         background: 'var(--color-surface-hover)',
-                                        border: '1px solid var(--color-border)',
                                         borderRadius: '0.5rem',
-                                        color: 'var(--color-text)',
-                                        fontWeight: 'bold',
-                                        cursor: 'pointer'
-                                    }}
-                                >
-                                    {t('calibration.cancel')}
-                                </button>
-                            </>
-                        )}
-
-                        {/* Mic Calibration UI */}
-                        {micCalibState.active && (
-                            <>
-                                <div style={{
-                                    fontSize: '1.2rem',
-                                    fontWeight: 'bold',
-                                    color: 'var(--color-primary)',
-                                    marginBottom: '1rem',
-                                    textAlign: 'center'
-                                }}>
-                                    {t('calibration.mic_title')}
-                                </div>
-
-                                {/* Step indicator */}
-                                <div style={{
-                                    background: 'var(--color-surface-hover)',
-                                    borderRadius: '0.5rem',
-                                    padding: '1rem',
-                                    marginBottom: '1rem'
-                                }}>
-                                    <div style={{
-                                        fontSize: '1.1rem',
-                                        fontWeight: 'bold',
-                                        marginBottom: '0.5rem',
-                                        color: 'var(--color-text)'
+                                        padding: '1rem',
+                                        marginBottom: '1rem'
                                     }}>
-                                        {t('calibration.step_of')} {
-                                            micCalibState.step === 'noise' ? '1/4' :
-                                                micCalibState.step === 'bleed' ? '2/4' :
-                                                    micCalibState.step === 'signal' ? '3/4' :
-                                                        micCalibState.step === 'finished' ? '4/4' : '1/4'
-                                        }
-                                    </div>
-                                    <div style={{
-                                        fontSize: '0.95rem',
-                                        color: 'var(--color-text-dim)'
-                                    }}>
-                                        {micCalibState.step === 'noise' && t('calibration.mic_step_noise')}
-                                        {micCalibState.step === 'bleed' && t('calibration.mic_step_bleed')}
-                                        {micCalibState.step === 'signal' && t('calibration.mic_step_signal')}
-                                        {micCalibState.step === 'finished' && t('calibration.mic_step_done')}
-                                    </div>
-
-                                    {/* Hit counter for signal step */}
-                                    {micCalibState.step === 'signal' && (
                                         <div style={{
-                                            marginTop: '0.75rem',
-                                            fontSize: '1.5rem',
+                                            fontSize: '1.1rem',
                                             fontWeight: 'bold',
-                                            color: 'var(--color-primary)'
+                                            marginBottom: '0.5rem',
+                                            color: 'var(--color-text)'
                                         }}>
-                                            {micCalibState.hitCount}/5
+                                            {t('calibration.step_of')} {calibrationState.count + 1}/5
                                         </div>
+                                        <div style={{
+                                            fontSize: '0.95rem',
+                                            color: 'var(--color-text-dim)'
+                                        }}>
+                                            {calibrationState.status === 'waiting_mic' && t('calibration.latency_step_prep')}
+                                            {calibrationState.status === 'warmup' && t('calibration.latency_step_warmup')}
+                                            {(calibrationState.status === 'starting' || calibrationState.status === 'listening') && t('calibration.latency_step_listen')}
+                                        </div>
+                                    </div>
+
+                                    {/* Tip */}
+                                    <div style={{
+                                        background: 'rgba(250, 173, 20, 0.15)',
+                                        border: '1px solid rgba(250, 173, 20, 0.3)',
+                                        borderRadius: '0.5rem',
+                                        padding: '0.75rem',
+                                        marginBottom: '1rem',
+                                        fontSize: '0.9rem',
+                                        color: '#faad14',
+                                        textAlign: 'center'
+                                    }}>
+                                        {t('calibration.latency_tip')}
+                                    </div>
+
+                                    {/* Progress bar */}
+                                    <div style={{
+                                        width: '100%',
+                                        height: '8px',
+                                        background: 'var(--color-border)',
+                                        borderRadius: 'var(--radius-sm)',
+                                        marginBottom: '1rem',
+                                        overflow: 'hidden'
+                                    }}>
+                                        <div style={{
+                                            width: `${((calibrationState.count + 1) / 5) * 100}%`,
+                                            height: '100%',
+                                            background: 'var(--color-primary)',
+                                            transition: 'width 0.3s ease'
+                                        }} />
+                                    </div>
+
+                                    {/* Debug log (collapsible) */}
+                                    {debugLog.length > 0 && (
+                                        <details style={{ marginBottom: '1rem' }}>
+                                            <summary style={{ fontSize: '0.8rem', color: 'var(--color-text-dim)', cursor: 'pointer' }}>
+                                                Debug Log
+                                            </summary>
+                                            <div style={{
+                                                fontSize: '0.75rem',
+                                                color: '#aaa',
+                                                background: 'rgba(0,0,0,0.3)',
+                                                padding: '0.5rem',
+                                                borderRadius: 'var(--radius-sm)',
+                                                marginTop: '0.5rem',
+                                                maxHeight: '100px',
+                                                overflowY: 'auto'
+                                            }}>
+                                                {debugLog.map((l, i) => <div key={i}>{l}</div>)}
+                                            </div>
+                                        </details>
                                     )}
-                                </div>
 
-                                {/* Tip based on step */}
-                                {micCalibState.step !== 'finished' && (
-                                    <div style={{
-                                        background: micCalibState.step === 'signal'
-                                            ? 'rgba(82, 196, 26, 0.15)'
-                                            : 'rgba(250, 173, 20, 0.15)',
-                                        border: micCalibState.step === 'signal'
-                                            ? '1px solid rgba(82, 196, 26, 0.3)'
-                                            : '1px solid rgba(250, 173, 20, 0.3)',
-                                        borderRadius: '0.5rem',
-                                        padding: '0.75rem',
-                                        marginBottom: '1rem',
-                                        fontSize: '0.9rem',
-                                        color: micCalibState.step === 'signal' ? '#52c41a' : '#faad14',
-                                        textAlign: 'center'
-                                    }}>
-                                        {micCalibState.step === 'signal'
-                                            ? t('calibration.mic_hit_tip')
-                                            : t('calibration.mic_noise_tip')}
-                                    </div>
-                                )}
-
-                                {/* Success message */}
-                                {micCalibState.step === 'finished' && (
-                                    <div style={{
-                                        background: 'rgba(82, 196, 26, 0.15)',
-                                        border: '1px solid rgba(82, 196, 26, 0.3)',
-                                        borderRadius: '0.5rem',
-                                        padding: '0.75rem',
-                                        marginBottom: '1rem',
-                                        fontSize: '0.9rem',
-                                        color: '#52c41a',
-                                        textAlign: 'center'
-                                    }}>
-                                        ✅ {micCalibState.message}
-                                    </div>
-                                )}
-
-                                {/* Progress bar */}
-                                <div style={{
-                                    width: '100%',
-                                    height: '8px',
-                                    background: 'var(--color-border)',
-                                    borderRadius: 'var(--radius-sm)',
-                                    marginBottom: '1rem',
-                                    overflow: 'hidden'
-                                }}>
-                                    <div style={{
-                                        width: `${micCalibState.step === 'noise' ? 25 :
-                                            micCalibState.step === 'bleed' ? 50 :
-                                                micCalibState.step === 'signal' ? 75 :
-                                                    micCalibState.step === 'finished' ? 100 : 25
-                                            }%`,
-                                        height: '100%',
-                                        background: micCalibState.step === 'finished'
-                                            ? '#52c41a'
-                                            : 'var(--color-primary)',
-                                        transition: 'width 0.3s ease'
-                                    }} />
-                                </div>
-
-                                {micCalibState.step !== 'finished' && (
                                     <button
-                                        onClick={cancelMicCalibration}
+                                        onClick={abortCalibration}
                                         style={{
                                             width: '100%',
                                             padding: '0.75rem',
@@ -1277,415 +1326,691 @@ export const Metronome: React.FC = () => {
                                     >
                                         {t('calibration.cancel')}
                                     </button>
-                                )}
-                            </>
-                        )}
-                    </div>
-                </div>
-            )}
-
-            {activeTab === 'training' && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', maxWidth: '100%', overflowX: 'hidden', padding: '0 1rem', position: 'relative' }}>
-
-                    {/* 1. Pattern Select */}
-                    <div>
-                        <select
-                            value={selectedPatternId}
-                            onChange={(e) => {
-                                if (isPlaying) stop();
-                                setSelectedPatternId(e.target.value);
-                            }}
-                            style={{
-                                width: '100%',
-                                padding: '0.8rem',
-                                fontSize: '1rem',
-                                borderRadius: 'var(--radius-md)',
-                                background: 'var(--color-surface)',
-                                color: 'var(--color-text)',
-                                border: '1px solid var(--color-border)',
-                                outline: 'none'
-                            }}
-                        >
-
-                            <optgroup label={t('presets') || "Presets"}>
-                                {PATTERNS.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                            </optgroup>
-                            {customPatterns.length > 0 && (
-                                <optgroup label={t('custom') || "Custom"}>
-                                    {customPatterns.map(p => (
-                                        <option key={p.id} value={p.id}>{p.name}</option>
-                                    ))}
-                                </optgroup>
+                                </>
                             )}
-                        </select>
-                    </div>
 
-                    {/* Visualizer & Feedback */}
-                    <div style={{ position: 'relative' }}>
-                        <VisualEffectsOverlay
-                            isPlaying={isPlaying && !isCountIn}
-                            lastBeatTime={lastBeatTime}
-                            theme={theme}
-                            effectsEnabled={visualEffectsEnabled}
-                        />
-                        <PatternVisualizer
-                            pattern={selectedPattern}
-                            currentStep={currentStep}
-                            isPlaying={isPlaying}
-                            subdivision={subdivision}
-                            expandedMeasures={expandedMeasures}
-                            effectsEnabled={visualEffectsEnabled}
-                            theme={theme}
-                        />
-
-                        {isPlaying && isCountIn && (
-                            <div style={{
-                                position: 'absolute',
-                                top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
-                                background: 'rgba(0,0,0,0.8)',
-                                color: '#fff',
-                                padding: '1rem',
-                                borderRadius: '1rem',
-                                fontWeight: 'bold',
-                                fontSize: '2rem',
-                                zIndex: 100,
-                                pointerEvents: 'none',
-                                whiteSpace: 'nowrap'
-                            }}>
-                                COUNT IN
-                            </div>
-                        )}
-
-                    </div>
-
-
-                    {/* Feedback Display (Gauge) */}
-                    <div style={{ height: '50px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', marginBottom: '0.5rem' }}>
-                        <TimingGauge offsetMs={displayFeedback.offsetMs} feedback={displayFeedback.feedback} />
-                        <div style={{ height: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            {displayFeedback.feedback && (
-                                <div style={{ fontSize: '0.8rem', fontWeight: 'bold', color: displayFeedback.feedback === 'Perfect' ? 'var(--color-success)' : displayFeedback.feedback === 'Good' ? 'var(--color-accent)' : 'var(--color-error)' }}>
-                                    {Math.round(Math.abs(displayFeedback.offsetMs))}ms
-                                </div>
-                            )}
-                        </div>
-                    </div>
-
-                    {/* 2. Unified Control Panel (Start/Stop + Tempo) */}
-                    <div className="control-panel" style={{
-                        display: 'flex',
-                        alignItems: 'stretch',
-                        background: 'var(--color-surface)',
-                        borderRadius: 'var(--radius-lg)',
-                        overflow: 'hidden',
-                        border: '1.5px solid var(--color-border)'
-                    }}>
-                        {/* Left: Start/Stop Button */}
-                        <div style={{
-                            flex: '0 0 80px',
-                            borderRight: '1.5px solid var(--color-border)',
-                            display: 'flex',
-                            flexDirection: 'column'
-                        }}>
-                            <button
-                                onClick={toggle}
-                                style={{
-                                    flex: 1,
-                                    width: '100%',
-                                    display: 'flex',
-                                    justifyContent: 'center',
-                                    alignItems: 'center',
-                                    backgroundColor: isPlaying ? 'var(--color-surface-hover)' : 'var(--color-primary)',
-                                    color: isPlaying ? 'var(--color-accent)' : '#fff',
-                                    border: 'none',
-                                    transition: 'all 0.2s',
-                                    cursor: 'pointer'
-                                }}
-                            >
-                                {isPlaying ? (
-                                    <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor">
-                                        <rect x="6" y="6" width="12" height="12" rx="2" />
-                                    </svg>
-                                ) : (
-                                    <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor">
-                                        <path d="M8 5v14l11-7z" />
-                                    </svg>
-                                )}
-                            </button>
-                            {/* No Rec Toggle (compact) */}
-                            <label style={{
-                                fontSize: '0.85rem',
-                                color: 'var(--color-text-dim)',
-                                display: 'flex',
-                                flexDirection: 'column',
-                                alignItems: 'center',
-                                padding: '4px',
-                                background: 'var(--color-surface)',
-                                cursor: 'pointer'
-                            }}>
-                                <input
-                                    type="checkbox"
-                                    checked={disableRecording}
-                                    onChange={e => setDisableRecording(e.target.checked)}
-                                    style={{ margin: 0, transform: 'scale(0.8)' }}
-                                />
-                                NoRec
-                            </label>
-                        </div>
-
-                        {/* Right: Tempo Controls */}
-                        <div style={{ flex: 1, padding: '1rem 0.5rem', display: 'flex', flexDirection: 'column', gap: '0.2rem', minWidth: 0 }}>
-
-                            {/* NEW: Subdivision & GapClick & TEMPO Label */}
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', padding: '0 8px' }}>
-                                <SubdivisionControl
-                                    subdivision={subdivision}
-                                    onChange={handleSubdivisionChange}
-                                    disabled={selectedPattern.isCustom}
-                                />
-                                <div style={{ fontSize: '0.85rem', color: 'var(--color-text-dim)', fontWeight: 'bold', letterSpacing: '1px' }}>TEMPO</div>
-                                <GapClickControl
-                                    enabled={gapEnabled}
-                                    playBars={playBars}
-                                    muteBars={muteBars}
-                                    onChange={handleGapClickChange}
-                                />
-                            </div>
-
-                            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '2px', flexWrap: 'wrap' }}>
-                                <button onClick={() => changeBpm(bpm - 10)} style={{ flex: 1, minWidth: '30px', padding: '6px 2px', background: 'transparent', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-sm)', color: 'var(--color-text)', fontSize: '0.85rem' }}>-10</button>
-                                <button onClick={() => changeBpm(bpm - 1)} style={{ flex: 1, minWidth: '24px', padding: '6px 2px', background: 'transparent', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-sm)', color: 'var(--color-text)', fontSize: '0.85rem' }}>-1</button>
-
-                                <div style={{ fontSize: '1.8rem', fontWeight: 'bold', color: 'var(--color-primary)', minWidth: '60px', textAlign: 'center', margin: '0 4px' }}>
-                                    {bpm}
-                                </div>
-
-                                <button onClick={() => changeBpm(bpm + 1)} style={{ flex: 1, minWidth: '24px', padding: '6px 2px', background: 'transparent', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-sm)', color: 'var(--color-text)', fontSize: '0.85rem' }}>+1</button>
-                                <button onClick={() => changeBpm(bpm + 10)} style={{ flex: 1, minWidth: '30px', padding: '6px 2px', background: 'transparent', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-sm)', color: 'var(--color-text)', fontSize: '0.85rem' }}>+10</button>
-                            </div>
-
-                            {/* Slider */}
-                            <input
-                                type="range"
-                                min="40" max="240"
-                                value={bpm}
-                                onChange={e => changeBpm(parseInt(e.target.value))}
-                                style={{ width: '95%', margin: '4px auto 0', accentColor: 'var(--color-primary)', cursor: 'pointer' }}
-                            />
-                        </div>
-                    </div>
-
-                    {/* Review Waveform */}
-                    {/* Review Waveform & Session Report */}
-                    {!isPlaying && (lastSessionStats || audioBlob) && (
-                        <div style={{ width: '100%', overflow: 'hidden', borderRadius: 'var(--radius-md)', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-
-                            {/* Session Summary Panel */}
-                            {lastSessionStats && (
-                                <div style={{
-                                    display: 'flex',
-                                    flexDirection: 'column',
-                                    padding: '1rem',
-                                    background: 'var(--color-surface)',
-                                    borderRadius: 'var(--radius-md)',
-                                    border: '1px solid var(--color-border)'
-                                }}>
-                                    {/* Tabs for Analysis */}
-                                    <div style={{ display: 'flex', marginBottom: '1rem', background: 'var(--color-bg)', padding: '2px', borderRadius: 'var(--radius-sm)' }}>
-                                        {(['total', 'left', 'right'] as const).map(tabKey => {
-                                            const label = t(`report.${tabKey}`);
-                                            const isActive = summaryTab === tabKey;
-                                            const hasData = tabKey === 'total' || (tabKey === 'left' && lastSessionStats.left) || (tabKey === 'right' && lastSessionStats.right);
-
-                                            if (!hasData) return null;
-
-                                            return (
-                                                <button
-                                                    key={tabKey}
-                                                    onClick={() => setSummaryTab(tabKey)}
-                                                    style={{
-                                                        flex: 1,
-                                                        padding: '0.4rem',
-                                                        fontSize: '0.8rem',
-                                                        fontWeight: 'bold',
-                                                        border: 'none',
-                                                        borderRadius: 'var(--radius-sm)',
-                                                        background: isActive ? 'var(--color-primary)' : 'transparent',
-                                                        color: isActive ? '#fff' : 'var(--color-text-dim)',
-                                                        cursor: 'pointer'
-                                                    }}
-                                                >
-                                                    {label}
-                                                </button>
-                                            )
-                                        })}
+                            {/* Mic Calibration UI */}
+                            {micCalibState.active && (
+                                <>
+                                    <div style={{
+                                        fontSize: '1.2rem',
+                                        fontWeight: 'bold',
+                                        color: 'var(--color-primary)',
+                                        marginBottom: '1rem',
+                                        textAlign: 'center'
+                                    }}>
+                                        {t('calibration.mic_title')}
                                     </div>
 
-                                    {/* Selected Data Content */}
-                                    {(() => {
-                                        const data = summaryTab === 'total'
-                                            ? lastSessionStats.total
-                                            : summaryTab === 'left'
-                                                ? lastSessionStats.left
-                                                : lastSessionStats.right;
+                                    {/* Step indicator */}
+                                    <div style={{
+                                        background: 'var(--color-surface-hover)',
+                                        borderRadius: '0.5rem',
+                                        padding: '1rem',
+                                        marginBottom: '1rem'
+                                    }}>
+                                        <div style={{
+                                            fontSize: '1.1rem',
+                                            fontWeight: 'bold',
+                                            marginBottom: '0.5rem',
+                                            color: 'var(--color-text)'
+                                        }}>
+                                            {t('calibration.step_of')} {
+                                                micCalibState.step === 'noise' ? '1/4' :
+                                                    micCalibState.step === 'bleed' ? '2/4' :
+                                                        micCalibState.step === 'signal' ? '3/4' :
+                                                            micCalibState.step === 'finished' ? '4/4' : '1/4'
+                                            }
+                                        </div>
+                                        <div style={{
+                                            fontSize: '0.95rem',
+                                            color: 'var(--color-text-dim)'
+                                        }}>
+                                            {micCalibState.step === 'noise' && t('calibration.mic_step_noise')}
+                                            {micCalibState.step === 'bleed' && t('calibration.mic_step_bleed')}
+                                            {micCalibState.step === 'signal' && t('calibration.mic_step_signal')}
+                                            {micCalibState.step === 'finished' && t('calibration.mic_step_done')}
+                                        </div>
 
-                                        if (!data) return <div style={{ textAlign: 'center', padding: '1rem', color: '#666' }}>{t('report.no_data')}</div>;
-
-                                        return (
-                                            <div style={{ display: 'flex', alignItems: 'center' }}>
-                                                {/* Left: Rank & Score */}
-                                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: '80px' }}>
-                                                    <div style={{
-                                                        fontSize: '3rem',
-                                                        fontWeight: '900',
-                                                        lineHeight: 1,
-                                                        color: data.rank === 'S' ? '#faad14' :
-                                                            data.rank === 'A' ? '#52c41a' :
-                                                                data.rank === 'B' ? '#1890ff' :
-                                                                    data.rank === 'C' ? '#fa8c16' : '#ff4d4f',
-                                                        textShadow: '0 2px 4px rgba(0,0,0,0.3)'
-                                                    }}>
-                                                        {data.rank}
-                                                    </div>
-                                                    <div style={{ fontSize: '1rem', fontWeight: 'bold', color: '#ccc' }}>
-                                                        {data.score} <span style={{ fontSize: '0.7rem' }}>{t('report.pts')}</span>
-                                                    </div>
-                                                </div>
-
-                                                {/* Right: Metrics Bars */}
-                                                <div style={{ flex: 1, marginLeft: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                                                    {/* Accuracy Bar */}
-                                                    <div>
-                                                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', marginBottom: '2px', color: '#aaa' }}>
-                                                            <span>{t('report.timing_accuracy')}</span>
-                                                            <span>{Math.round(data.accuracy)}ms {t('report.avg')}</span>
-                                                        </div>
-                                                        <div style={{ height: '6px', width: '100%', background: '#333', borderRadius: 'var(--radius-sm)', overflow: 'hidden' }}>
-                                                            <div style={{
-                                                                height: '100%',
-                                                                width: `${Math.max(0, Math.min(100, 100 - (data.accuracy - 20) * (100 / 60)))}%`, // 20ms full, 80ms empty
-                                                                background: 'linear-gradient(90deg, #52c41a, #a0d911)'
-                                                            }} />
-                                                        </div>
-                                                    </div>
-
-                                                    {/* Stability Bar */}
-                                                    <div>
-                                                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', marginBottom: '2px', color: '#aaa' }}>
-                                                            <span>{t('report.stability')}</span>
-                                                            <span>{Math.round(data.stdDev)}ms</span>
-                                                        </div>
-                                                        <div style={{ height: '6px', width: '100%', background: '#333', borderRadius: 'var(--radius-sm)', overflow: 'hidden' }}>
-                                                            <div style={{
-                                                                height: '100%',
-                                                                width: `${Math.max(0, Math.min(100, 100 - ((data.stdDev || 0) - 10) * (100 / 40)))}%`, // 10ms full, 50ms empty
-                                                                background: 'linear-gradient(90deg, #1890ff, #69c0ff)'
-                                                            }} />
-                                                        </div>
-                                                    </div>
-
-                                                    {/* Tendency Bar (Bipolar) */}
-                                                    <div>
-                                                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', marginBottom: '2px', color: '#aaa' }}>
-                                                            <span>{t('report.tendency')}</span>
-                                                            <span style={{
-                                                                color: data.tendency < -5 ? '#fa8c16' : data.tendency > 5 ? '#ff4d4f' : '#52c41a'
-                                                            }}>
-                                                                {Math.abs(data.tendency) < 5 ? t('report.just_right') :
-                                                                    data.tendency < 0 ? `${t('report.rush')} (${Math.round(data.tendency)}ms)` : `${t('report.drag')} (+${Math.round(data.tendency)}ms)`}
-                                                            </span>
-                                                        </div>
-                                                        <div style={{ height: '6px', width: '100%', background: '#333', borderRadius: 'var(--radius-sm)', position: 'relative' }}>
-                                                            {/* Center Marker */}
-                                                            <div style={{ position: 'absolute', left: '50%', top: 0, bottom: 0, width: '2px', background: '#555', transform: 'translateX(-50%)' }} />
-                                                            {/* Fill */}
-                                                            <div style={{
-                                                                position: 'absolute',
-                                                                top: 0, bottom: 0,
-                                                                left: data.tendency < 0 ? 'auto' : '50%',
-                                                                right: data.tendency < 0 ? '50%' : 'auto',
-                                                                // Scale: 50ms = full width (50%)
-                                                                width: `${Math.min(50, Math.abs(data.tendency) * (50 / 50))}%`,
-                                                                background: data.tendency < 0 ? '#fa8c16' : '#ff4d4f', // Orange for Rush, Red for Drag (or adjust colors?)
-                                                                borderTopLeftRadius: data.tendency < 0 ? 'var(--radius-sm)' : '0',
-                                                                borderBottomLeftRadius: data.tendency < 0 ? 'var(--radius-sm)' : '0',
-                                                                borderTopRightRadius: data.tendency > 0 ? 'var(--radius-sm)' : '0',
-                                                                borderBottomRightRadius: data.tendency > 0 ? 'var(--radius-sm)' : '0',
-                                                            }} />
-                                                        </div>
-                                                    </div>
-
-                                                    {/* Hit Count Label */}
-                                                    <div style={{ textAlign: 'right', fontSize: '0.75rem', color: '#666', marginTop: '2px' }}>
-                                                        {t('report.hits')}: {data.hitCount}
-                                                    </div>
-                                                </div>
+                                        {/* Hit counter for signal step */}
+                                        {micCalibState.step === 'signal' && (
+                                            <div style={{
+                                                marginTop: '0.75rem',
+                                                fontSize: '1.5rem',
+                                                fontWeight: 'bold',
+                                                color: 'var(--color-primary)'
+                                            }}>
+                                                {micCalibState.hitCount}/5
                                             </div>
-                                        );
-                                    })()}
+                                        )}
+                                    </div>
+
+                                    {/* Tip based on step */}
+                                    {micCalibState.step !== 'finished' && (
+                                        <div style={{
+                                            background: micCalibState.step === 'signal'
+                                                ? 'rgba(82, 196, 26, 0.15)'
+                                                : 'rgba(250, 173, 20, 0.15)',
+                                            border: micCalibState.step === 'signal'
+                                                ? '1px solid rgba(82, 196, 26, 0.3)'
+                                                : '1px solid rgba(250, 173, 20, 0.3)',
+                                            borderRadius: '0.5rem',
+                                            padding: '0.75rem',
+                                            marginBottom: '1rem',
+                                            fontSize: '0.9rem',
+                                            color: micCalibState.step === 'signal' ? '#52c41a' : '#faad14',
+                                            textAlign: 'center'
+                                        }}>
+                                            {micCalibState.step === 'signal'
+                                                ? t('calibration.mic_hit_tip')
+                                                : t('calibration.mic_noise_tip')}
+                                        </div>
+                                    )}
+
+                                    {/* Success message */}
+                                    {micCalibState.step === 'finished' && (
+                                        <div style={{
+                                            background: 'rgba(82, 196, 26, 0.15)',
+                                            border: '1px solid rgba(82, 196, 26, 0.3)',
+                                            borderRadius: '0.5rem',
+                                            padding: '0.75rem',
+                                            marginBottom: '1rem',
+                                            fontSize: '0.9rem',
+                                            color: '#52c41a',
+                                            textAlign: 'center'
+                                        }}>
+                                            ✅ {micCalibState.message}
+                                        </div>
+                                    )}
+
+                                    {/* Progress bar */}
+                                    <div style={{
+                                        width: '100%',
+                                        height: '8px',
+                                        background: 'var(--color-border)',
+                                        borderRadius: 'var(--radius-sm)',
+                                        marginBottom: '1rem',
+                                        overflow: 'hidden'
+                                    }}>
+                                        <div style={{
+                                            width: `${micCalibState.step === 'noise' ? 25 :
+                                                micCalibState.step === 'bleed' ? 50 :
+                                                    micCalibState.step === 'signal' ? 75 :
+                                                        micCalibState.step === 'finished' ? 100 : 25
+                                                }%`,
+                                            height: '100%',
+                                            background: micCalibState.step === 'finished'
+                                                ? '#52c41a'
+                                                : 'var(--color-primary)',
+                                            transition: 'width 0.3s ease'
+                                        }} />
+                                    </div>
+
+                                    {micCalibState.step !== 'finished' && (
+                                        <button
+                                            onClick={cancelMicCalibration}
+                                            style={{
+                                                width: '100%',
+                                                padding: '0.75rem',
+                                                background: 'var(--color-surface-hover)',
+                                                border: '1px solid var(--color-border)',
+                                                borderRadius: '0.5rem',
+                                                color: 'var(--color-text)',
+                                                fontWeight: 'bold',
+                                                cursor: 'pointer'
+                                            }}
+                                        >
+                                            {t('calibration.cancel')}
+                                        </button>
+                                    )}
+                                </>
+                            )}
+                        </div>
+                    </div>
+                )
+            }
+
+            {
+                activeTab === 'training' && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', maxWidth: '100%', overflowX: 'hidden', padding: '0 1rem', position: 'relative' }}>
+
+                        {/* 1. Pattern Select */}
+                        <div>
+                            <select
+                                value={selectedPatternId}
+                                onChange={(e) => {
+                                    if (isPlaying) stop();
+                                    setSelectedPatternId(e.target.value);
+                                }}
+                                style={{
+                                    width: '100%',
+                                    padding: '0.8rem',
+                                    fontSize: '1rem',
+                                    borderRadius: 'var(--radius-md)',
+                                    background: 'var(--color-surface)',
+                                    color: 'var(--color-text)',
+                                    border: '1px solid var(--color-border)',
+                                    outline: 'none'
+                                }}
+                            >
+
+                                <optgroup label={t('presets') || "Presets"}>
+                                    {PATTERNS.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                                </optgroup>
+                                {customPatterns.length > 0 && (
+                                    <optgroup label={t('custom') || "Custom"}>
+                                        {customPatterns.map(p => (
+                                            <option key={p.id} value={p.id}>{p.name}</option>
+                                        ))}
+                                    </optgroup>
+                                )}
+                            </select>
+                        </div>
+
+                        {/* Visualizer & Feedback */}
+                        <div style={{ position: 'relative' }}>
+                            <VisualEffectsOverlay
+                                isPlaying={isPlaying && !isCountIn}
+                                lastBeatTime={lastBeatTime}
+                                theme={theme}
+                                effectsEnabled={visualEffectsEnabled}
+                            />
+                            <PatternVisualizer
+                                pattern={selectedPattern}
+                                currentStep={currentStep}
+                                isPlaying={isPlaying}
+                                subdivision={subdivision}
+                                expandedMeasures={expandedMeasures}
+                                effectsEnabled={visualEffectsEnabled}
+                                theme={theme}
+                            />
+
+                            {isPlaying && isCountIn && (
+                                <div style={{
+                                    position: 'absolute',
+                                    top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
+                                    background: 'rgba(0,0,0,0.8)',
+                                    color: '#fff',
+                                    padding: '1rem',
+                                    borderRadius: '1rem',
+                                    fontWeight: 'bold',
+                                    fontSize: '2rem',
+                                    zIndex: 100,
+                                    pointerEvents: 'none',
+                                    whiteSpace: 'nowrap'
+                                }}>
+                                    COUNT IN
                                 </div>
                             )}
 
-                            {/* Timing Deviation Graph */}
-                            {lastSessionHits && lastSessionHits.length > 0 && selectedPattern && (
-                                <TimingDeviationGraph
-                                    hits={lastSessionHits}
-                                    patternLength={selectedPattern.sequence.length}
-                                />
-                            )}
-
-                            <WaveformVisualizer
-                                audioBlob={audioBlob}
-                                onsets={onsets}
-                                startTime={startTime}
-                                duration={duration}
-                                audioContext={audioContext}
-                                beatHistory={beatHistory}
-                                audioLatency={audioLatency}
-                            />
                         </div>
-                    )}
 
-                    {/* 4. Settings (Collapsible) */}
 
-                </div>
-            )}
+                        {/* Feedback Display (Gauge) */}
+                        <div style={{ height: '50px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', marginBottom: '0.5rem' }}>
+                            <TimingGauge offsetMs={displayFeedback.offsetMs} feedback={displayFeedback.feedback} />
+                            <div style={{ height: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                {displayFeedback.feedback && (
+                                    <div style={{ fontSize: '0.8rem', fontWeight: 'bold', color: displayFeedback.feedback === 'Perfect' ? 'var(--color-success)' : displayFeedback.feedback === 'Good' ? 'var(--color-accent)' : 'var(--color-error)' }}>
+                                        {Math.round(Math.abs(displayFeedback.offsetMs))}ms
+                                    </div>
+                                )}
+                            </div>
+                        </div>
 
-            {activeTab === 'history' && (
-                <HistoryView />
-            )}
+                        {/* 2. Unified Control Panel (Start/Stop + Tempo) */}
+                        <div className="control-panel" style={{
+                            display: 'flex',
+                            alignItems: 'stretch',
+                            background: 'var(--color-surface)',
+                            borderRadius: 'var(--radius-lg)',
+                            border: '1.5px solid var(--color-border)',
+                            position: 'relative' // Ensure popovers can overflow if needed
+                        }}>
+                            {/* Left: Start/Stop Button */}
+                            <div style={{
+                                flex: '0 0 85px',
+                                borderRight: '1.5px solid var(--color-border)',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                overflow: 'visible'
+                            }}>
+                                <button
+                                    onClick={toggle}
+                                    style={{
+                                        flex: 1,
+                                        width: '100%',
+                                        display: 'flex',
+                                        flexDirection: 'column',
+                                        justifyContent: 'center',
+                                        alignItems: 'center',
+                                        backgroundColor: isPlaying ? 'transparent' : 'var(--color-primary)',
+                                        color: isPlaying ? 'var(--color-accent)' : '#fff',
+                                        border: 'none',
+                                        borderBottom: '1px solid var(--color-border)',
+                                        transition: 'all 0.2s',
+                                        cursor: 'pointer',
+                                        borderTopLeftRadius: 'var(--radius-lg)'
+                                    }}
+                                >
+                                    {isPlaying ? (
+                                        <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor">
+                                            <rect x="6" y="6" width="12" height="12" rx="1" />
+                                        </svg>
+                                    ) : (
+                                        <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor">
+                                            <path d="M8 5v14l11-7z" />
+                                        </svg>
+                                    )}
+                                </button>
 
-            {activeTab === 'editor' && (
-                <div style={{ height: 'calc(100vh - 160px)', overflowY: 'auto' }}>
-                    <PatternManager onDirtyChange={setEditorIsDirty} />
-                </div>
-            )}
+                                {/* Bottom Row: Timer & NoRec */}
+                                <div style={{ display: 'flex', height: '36px', borderTop: '1px solid var(--color-border)' }}>
+                                    {/* Timer Button */}
+                                    <div style={{ position: 'relative', flex: 1, borderRight: '1px solid var(--color-border)' }}>
+                                        <button
+                                            onClick={(e) => { e.stopPropagation(); setShowTimerDialog(!showTimerDialog); }}
+                                            style={{
+                                                width: '100%', height: '100%',
+                                                background: timerDuration !== null ? 'var(--color-primary)' : 'transparent',
+                                                color: timerDuration !== null ? '#fff' : 'var(--color-text)',
+                                                border: 'none',
+                                                cursor: 'pointer',
+                                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                borderBottomLeftRadius: 'var(--radius-lg)'
+                                            }}
+                                            title={t('timer.title')}
+                                        >
+                                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                <circle cx="12" cy="12" r="10"></circle>
+                                                <polyline points="12 6 12 12 16 14"></polyline>
+                                            </svg>
+                                        </button>
 
-            {activeTab === 'manual' && (
-                <ManualHelper />
-            )}
+                                        {/* Timer Dialog Popover */}
+                                        {showTimerDialog && (
+                                            <>
+                                                <div
+                                                    style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 998 }}
+                                                    onClick={() => setShowTimerDialog(false)}
+                                                />
+                                                <div style={{
+                                                    position: 'absolute',
+                                                    bottom: '100%', left: '0', marginBottom: '8px',
+                                                    background: 'var(--color-surface)',
+                                                    border: '1px solid var(--color-border)',
+                                                    borderRadius: '0.5rem',
+                                                    padding: '0.5rem',
+                                                    boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
+                                                    zIndex: 999,
+                                                    minWidth: '160px',
+                                                    display: 'flex', flexDirection: 'column', gap: '4px'
+                                                }}>
+                                                    <div style={{ fontSize: '0.8rem', fontWeight: 'bold', color: 'var(--color-text-dim)', padding: '4px' }}>{t('timer.title')}</div>
+                                                    <button
+                                                        onClick={() => { setTimerDuration(3); setShowTimerDialog(false); }}
+                                                        style={{
+                                                            padding: '8px', borderRadius: '4px', border: 'none',
+                                                            background: timerDuration === 3 ? 'var(--color-primary)' : 'var(--color-surface-hover)',
+                                                            cursor: 'pointer',
+                                                            color: timerDuration === 3 ? '#fff' : 'var(--color-text)'
+                                                        }}
+                                                    >
+                                                        {t('timer.min_3')}
+                                                    </button>
+                                                    <button
+                                                        onClick={() => { setTimerDuration(5); setShowTimerDialog(false); }}
+                                                        style={{
+                                                            padding: '8px', borderRadius: '4px', border: 'none',
+                                                            background: timerDuration === 5 ? 'var(--color-primary)' : 'var(--color-surface-hover)',
+                                                            cursor: 'pointer',
+                                                            color: timerDuration === 5 ? '#fff' : 'var(--color-text)'
+                                                        }}
+                                                    >
+                                                        {t('timer.min_5')}</button>
+                                                    <div style={{ display: 'flex', gap: '4px', padding: '4px' }}>
+                                                        <input
+                                                            type="number"
+                                                            value={customTimerInput}
+                                                            onChange={(e) => setCustomTimerInput(e.target.value)}
+                                                            style={{ width: '50px', padding: '4px', borderRadius: '4px', border: '1px solid var(--color-border)', fontSize: '0.9rem', background: 'var(--color-surface)', color: 'var(--color-text)' }}
+                                                        />
+                                                        <button
+                                                            onClick={() => { setTimerDuration(parseInt(customTimerInput) || 3); setShowTimerDialog(false); }}
+                                                            style={{
+                                                                flex: 1, padding: '4px', borderRadius: '4px',
+                                                                border: '1px solid var(--color-border)',
+                                                                background: (timerDuration !== 3 && timerDuration !== 5 && timerDuration !== null) ? 'var(--color-primary)' : 'var(--color-surface-hover)',
+                                                                color: (timerDuration !== 3 && timerDuration !== 5 && timerDuration !== null) ? '#fff' : 'var(--color-text)',
+                                                                cursor: 'pointer', fontSize: '0.8rem'
+                                                            }}
+                                                        >
+                                                            {t('timer.set')}
+                                                        </button>
+                                                    </div>
+                                                    <div style={{ height: '1px', background: 'var(--color-border)', margin: '4px 0' }} />
+                                                    <button onClick={() => { setTimerDuration(null); setShowTimerDialog(false); }} style={{ padding: '8px', borderRadius: '4px', border: 'none', background: 'transparent', cursor: 'pointer', color: '#ff4d4f' }}>{t('timer.off')}</button>
+                                                </div>
+                                            </>
+                                        )}
+                                    </div>
 
-            {activeTab === 'settings' && (
-                <div style={{ height: 'calc(100vh - 160px)', padding: '0 1rem' }}>
-                    <MetronomeSettings
-                        currentTheme={theme}
-                        onThemeChange={handleThemeChange}
-                        visualEffectsEnabled={visualEffectsEnabled}
-                        onVisualEffectsChange={setVisualEffectsEnabled}
-                        audioLatency={audioLatency}
-                        onAudioLatencyChange={setAudioLatency}
-                        onRunAutoCalibration={runCalibration}
-                        isCalibrating={calibrationState.active}
-                        micGain={micGain}
-                        onMicGainChange={setMicGain}
-                        micThreshold={micThreshold}
-                        onMicThresholdChange={setMicThreshold}
-                        onRunMicCalibration={runMicAutoCalibration}
-                        isMicCalibrating={micCalibState.active}
-                    />
-                </div>
-            )}
+                                    {/* NoRec Button */}
+                                    <button
+                                        onClick={() => setDisableRecording(!disableRecording)}
+                                        style={{
+                                            flex: 1,
+                                            width: '100%', height: '100%',
+                                            background: disableRecording ? '#e67700' : 'transparent', // Orange when active (NoRec ON)
+                                            color: disableRecording ? '#fff' : 'var(--color-text)',
+                                            border: 'none',
+                                            cursor: 'pointer',
+                                            display: 'flex', alignItems: 'center', justifyContent: 'center'
+                                        }}
+                                        title="No Recording"
+                                    >
+                                        {disableRecording ? (
+                                            // Mic Off
+                                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                <line x1="1" y1="1" x2="23" y2="23"></line>
+                                                <path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V4a3 3 0 0 0-5.94-.6"></path>
+                                                <path d="M17 16.95A7 7 0 0 1 5 12v-2m14 0v2a7 7 0 0 1-.11 1.23"></path>
+                                                <line x1="12" y1="19" x2="12" y2="23"></line>
+                                                <line x1="8" y1="23" x2="16" y2="23"></line>
+                                            </svg>
+                                        ) : (
+                                            // Mic On (but usually this button is 'NoRec', so inactive state is actually 'Mic On' logic-wise, but visual is 'NoRec Off' -> Mic Normal)
+                                            // User wanted "Mic with X icon"
+                                            // Wait, user said "Mic with X icon" for the BUTTON itself.
+                                            // If disableRecording is FALSE (Mic ON), button should be inactive styling.
+                                            // If disableRecording is TRUE (Mic OFF), button should be ACTIVE styling (Orange).
+                                            // So the Icon should PROBABLY always be "Mic Off" to represent the function "Disable Mic".
+                                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.5 }}>
+                                                <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+                                                <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                                                <line x1="12" y1="19" x2="12" y2="23"></line>
+                                                <line x1="8" y1="23" x2="16" y2="23"></line>
+                                                <line x1="1" y1="1" x2="23" y2="23" stroke="currentColor" strokeWidth="2" style={{ display: 'none' }} />
+                                                {/* Just a standard mic icon effectively? No, let's use Mic Off icon always, but dim if inactive. */}
+                                                <line x1="1" y1="1" x2="23" y2="23"></line>
+                                            </svg>
+                                        )}
+                                    </button>
+                                </div>
+                            </div>
 
-        </section>
+                            {/* Right: Tempo Controls */}
+                            <div style={{
+                                flex: 1,
+                                padding: '1rem 0.5rem',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: '0.2rem',
+                                minWidth: 0,
+                                borderTopRightRadius: 'var(--radius-lg)',
+                                borderBottomRightRadius: 'var(--radius-lg)',
+                                background: 'var(--color-surface)'
+                            }}>
+
+                                {/* Subdivision & GapClick & TEMPO Label */}
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px', padding: '0 8px' }}>
+                                    <SubdivisionControl
+                                        subdivision={subdivision}
+                                        onChange={handleSubdivisionChange}
+                                        disabled={selectedPattern.isCustom}
+                                    />
+                                    <div style={{ fontSize: '0.9rem', color: 'var(--color-text-dim)', fontWeight: 'bold', letterSpacing: '1px', flex: 1, textAlign: 'center' }}>TEMPO</div>
+                                    <GapClickControl
+                                        enabled={gapEnabled}
+                                        playBars={playBars}
+                                        muteBars={muteBars}
+                                        onChange={handleGapClickChange}
+                                    />
+                                </div>
+
+                                <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '2px', flexWrap: 'wrap' }}>
+                                    <button onClick={() => changeBpm(bpm - 10)} style={{ flex: 1, minWidth: '30px', padding: '6px 2px', background: 'transparent', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-sm)', color: 'var(--color-text)', fontSize: '0.85rem' }}>-10</button>
+                                    <button onClick={() => changeBpm(bpm - 1)} style={{ flex: 1, minWidth: '24px', padding: '6px 2px', background: 'transparent', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-sm)', color: 'var(--color-text)', fontSize: '0.85rem' }}>-1</button>
+
+                                    <div style={{ fontSize: '2rem', fontWeight: 'bold', color: 'var(--color-primary)', minWidth: '60px', textAlign: 'center', margin: '0 4px' }}>
+                                        {bpm}
+                                    </div>
+
+                                    <button onClick={() => changeBpm(bpm + 1)} style={{ flex: 1, minWidth: '24px', padding: '6px 2px', background: 'transparent', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-sm)', color: 'var(--color-text)', fontSize: '0.85rem' }}>+1</button>
+                                    <button onClick={() => changeBpm(bpm + 10)} style={{ flex: 1, minWidth: '30px', padding: '6px 2px', background: 'transparent', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-sm)', color: 'var(--color-text)', fontSize: '0.85rem' }}>+10</button>
+                                </div>
+
+                                {/* Slider */}
+                                <input
+                                    type="range"
+                                    min="40" max="240"
+                                    value={bpm}
+                                    onChange={e => changeBpm(parseInt(e.target.value))}
+                                    style={{ width: '95%', margin: '4px auto 0', accentColor: 'var(--color-primary)', cursor: 'pointer' }}
+                                />
+                            </div>
+                        </div>
+
+                        {/* Review Waveform */}
+                        {/* Review Waveform & Session Report */}
+                        {!isPlaying && (lastSessionStats || audioBlob) && (
+                            <div style={{ width: '100%', overflow: 'hidden', borderRadius: 'var(--radius-md)', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+
+                                {/* Session Summary Panel */}
+                                {lastSessionStats && (
+                                    <div style={{
+                                        display: 'flex',
+                                        flexDirection: 'column',
+                                        padding: '1rem',
+                                        background: 'var(--color-surface)',
+                                        borderRadius: 'var(--radius-md)',
+                                        border: '1px solid var(--color-border)'
+                                    }}>
+                                        {/* Tabs for Analysis */}
+                                        <div style={{ display: 'flex', marginBottom: '1rem', background: 'var(--color-bg)', padding: '2px', borderRadius: 'var(--radius-sm)' }}>
+                                            {(['total', 'left', 'right'] as const).map(tabKey => {
+                                                const label = t(`report.${tabKey}`);
+                                                const isActive = summaryTab === tabKey;
+                                                const hasData = tabKey === 'total' || (tabKey === 'left' && lastSessionStats.left) || (tabKey === 'right' && lastSessionStats.right);
+
+                                                if (!hasData) return null;
+
+                                                return (
+                                                    <button
+                                                        key={tabKey}
+                                                        onClick={() => setSummaryTab(tabKey)}
+                                                        style={{
+                                                            flex: 1,
+                                                            padding: '0.4rem',
+                                                            fontSize: '0.8rem',
+                                                            fontWeight: 'bold',
+                                                            border: 'none',
+                                                            borderRadius: 'var(--radius-sm)',
+                                                            background: isActive ? 'var(--color-primary)' : 'transparent',
+                                                            color: isActive ? '#fff' : 'var(--color-text-dim)',
+                                                            cursor: 'pointer'
+                                                        }}
+                                                    >
+                                                        {label}
+                                                    </button>
+                                                )
+                                            })}
+                                        </div>
+
+                                        {/* Selected Data Content */}
+                                        {(() => {
+                                            const data = summaryTab === 'total'
+                                                ? lastSessionStats.total
+                                                : summaryTab === 'left'
+                                                    ? lastSessionStats.left
+                                                    : lastSessionStats.right;
+
+                                            if (!data) return <div style={{ textAlign: 'center', padding: '1rem', color: '#666' }}>{t('report.no_data')}</div>;
+
+                                            return (
+                                                <div style={{ display: 'flex', alignItems: 'center' }}>
+                                                    {/* Left: Rank & Score */}
+                                                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: '80px' }}>
+                                                        <div style={{
+                                                            fontSize: '3rem',
+                                                            fontWeight: '900',
+                                                            lineHeight: 1,
+                                                            color: data.rank === 'S' ? '#faad14' :
+                                                                data.rank === 'A' ? '#52c41a' :
+                                                                    data.rank === 'B' ? '#1890ff' :
+                                                                        data.rank === 'C' ? '#fa8c16' : '#ff4d4f',
+                                                            textShadow: '0 2px 4px rgba(0,0,0,0.3)'
+                                                        }}>
+                                                            {data.rank}
+                                                        </div>
+                                                        <div style={{ fontSize: '1rem', fontWeight: 'bold', color: '#ccc' }}>
+                                                            {data.score} <span style={{ fontSize: '0.7rem' }}>{t('report.pts')}</span>
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Right: Metrics Bars */}
+                                                    <div style={{ flex: 1, marginLeft: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                                        {/* Accuracy Bar */}
+                                                        <div>
+                                                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', marginBottom: '2px', color: '#aaa' }}>
+                                                                <span>{t('report.timing_accuracy')}</span>
+                                                                <span>{Math.round(data.accuracy)}ms {t('report.avg')}</span>
+                                                            </div>
+                                                            <div style={{ height: '6px', width: '100%', background: '#333', borderRadius: 'var(--radius-sm)', overflow: 'hidden' }}>
+                                                                <div style={{
+                                                                    height: '100%',
+                                                                    width: `${Math.max(0, Math.min(100, 100 - (data.accuracy - 20) * (100 / 60)))}%`, // 20ms full, 80ms empty
+                                                                    background: 'linear-gradient(90deg, #52c41a, #a0d911)'
+                                                                }} />
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Stability Bar */}
+                                                        <div>
+                                                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', marginBottom: '2px', color: '#aaa' }}>
+                                                                <span>{t('report.stability')}</span>
+                                                                <span>{Math.round(data.stdDev)}ms</span>
+                                                            </div>
+                                                            <div style={{ height: '6px', width: '100%', background: '#333', borderRadius: 'var(--radius-sm)', overflow: 'hidden' }}>
+                                                                <div style={{
+                                                                    height: '100%',
+                                                                    width: `${Math.max(0, Math.min(100, 100 - ((data.stdDev || 0) - 10) * (100 / 40)))}%`, // 10ms full, 50ms empty
+                                                                    background: 'linear-gradient(90deg, #1890ff, #69c0ff)'
+                                                                }} />
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Tendency Bar (Bipolar) */}
+                                                        <div>
+                                                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', marginBottom: '2px', color: '#aaa' }}>
+                                                                <span>{t('report.tendency')}</span>
+                                                                <span style={{
+                                                                    color: data.tendency < -5 ? '#fa8c16' : data.tendency > 5 ? '#ff4d4f' : '#52c41a'
+                                                                }}>
+                                                                    {Math.abs(data.tendency) < 5 ? t('report.just_right') :
+                                                                        data.tendency < 0 ? `${t('report.rush')} (${Math.round(data.tendency)}ms)` : `${t('report.drag')} (+${Math.round(data.tendency)}ms)`}
+                                                                </span>
+                                                            </div>
+                                                            <div style={{ height: '6px', width: '100%', background: '#333', borderRadius: 'var(--radius-sm)', position: 'relative' }}>
+                                                                {/* Center Marker */}
+                                                                <div style={{ position: 'absolute', left: '50%', top: 0, bottom: 0, width: '2px', background: '#555', transform: 'translateX(-50%)' }} />
+                                                                {/* Fill */}
+                                                                <div style={{
+                                                                    position: 'absolute',
+                                                                    top: 0, bottom: 0,
+                                                                    left: data.tendency < 0 ? 'auto' : '50%',
+                                                                    right: data.tendency < 0 ? '50%' : 'auto',
+                                                                    // Scale: 50ms = full width (50%)
+                                                                    width: `${Math.min(50, Math.abs(data.tendency) * (50 / 50))}%`,
+                                                                    background: data.tendency < 0 ? '#fa8c16' : '#ff4d4f', // Orange for Rush, Red for Drag (or adjust colors?)
+                                                                    borderTopLeftRadius: data.tendency < 0 ? 'var(--radius-sm)' : '0',
+                                                                    borderBottomLeftRadius: data.tendency < 0 ? 'var(--radius-sm)' : '0',
+                                                                    borderTopRightRadius: data.tendency > 0 ? 'var(--radius-sm)' : '0',
+                                                                    borderBottomRightRadius: data.tendency > 0 ? 'var(--radius-sm)' : '0',
+                                                                }} />
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Hit Count Label */}
+                                                        <div style={{ textAlign: 'right', fontSize: '0.75rem', color: '#666', marginTop: '2px' }}>
+                                                            {t('report.hits')}: {data.hitCount}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })()}
+                                    </div>
+                                )}
+
+                                {/* Timing Deviation Graph */}
+                                {lastSessionHits && lastSessionHits.length > 0 && selectedPattern && (
+                                    <TimingDeviationGraph
+                                        hits={lastSessionHits}
+                                        patternLength={selectedPattern.sequence.length}
+                                    />
+                                )}
+
+                                <WaveformVisualizer
+                                    audioBlob={audioBlob}
+                                    onsets={onsets}
+                                    startTime={startTime}
+                                    duration={duration}
+                                    audioContext={audioContext}
+                                    beatHistory={beatHistory}
+                                    audioLatency={audioLatency}
+                                />
+                            </div>
+                        )}
+
+                        {/* 4. Settings (Collapsible) */}
+
+                    </div>
+                )
+            }
+
+            {
+                activeTab === 'history' && (
+                    <HistoryView />
+                )
+            }
+
+            {
+                activeTab === 'editor' && (
+                    <div style={{ height: 'calc(100vh - 160px)', overflowY: 'auto' }}>
+                        <PatternManager onDirtyChange={setEditorIsDirty} />
+                    </div>
+                )
+            }
+
+            {
+                activeTab === 'manual' && (
+                    <ManualHelper />
+                )
+            }
+
+            {
+                activeTab === 'settings' && (
+                    <div style={{ height: 'calc(100vh - 160px)', padding: '0 1rem' }}>
+                        <MetronomeSettings
+                            currentTheme={theme}
+                            onThemeChange={handleThemeChange}
+                            visualEffectsEnabled={visualEffectsEnabled}
+                            onVisualEffectsChange={setVisualEffectsEnabled}
+                            audioLatency={audioLatency}
+                            onAudioLatencyChange={setAudioLatency}
+                            onRunAutoCalibration={runCalibration}
+                            isCalibrating={calibrationState.active}
+                            micGain={micGain}
+                            onMicGainChange={setMicGain}
+                            micThreshold={micThreshold}
+                            onMicThresholdChange={setMicThreshold}
+                            onRunMicCalibration={runMicAutoCalibration}
+                            isMicCalibrating={micCalibState.active}
+                        />
+                    </div>
+                )
+            }
+
+        </section >
     );
 };

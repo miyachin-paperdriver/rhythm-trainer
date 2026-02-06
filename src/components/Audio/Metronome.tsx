@@ -1019,6 +1019,17 @@ export const Metronome: React.FC = () => {
         }
     }, [isPlaying, isMicReady, mediaStream, disableRecording, audioContext, startAnalysis, startRecording]);
 
+    // Cleanup Effect: Ensure microphone and recording are stopped when playback stops
+    useEffect(() => {
+        if (!isPlaying && !calibrationState.active && !micCalibState.active) {
+            stopAnalysis();
+            if (recordingStartedRef.current) {
+                stopRecording();
+                recordingStartedRef.current = false;
+            }
+        }
+    }, [isPlaying, calibrationState.active, micCalibState.active, stopAnalysis, stopRecording]);
+
     // Theme Handler (Updated to use state)
     const handleThemeChange = (newTheme: 'light' | 'dark') => {
         setTheme(newTheme);

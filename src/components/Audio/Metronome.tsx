@@ -2165,6 +2165,7 @@ export const Metronome: React.FC = () => {
                             onToggleMic={() => setIsMicEnabled(prev => !prev)}
                             selectedDeviceId={selectedDeviceId}
                             onDeviceChange={setSelectedDeviceId}
+                            mediaStream={mediaStream}
                         />
                     </div>
                 )

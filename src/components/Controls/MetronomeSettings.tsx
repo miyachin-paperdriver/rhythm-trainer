@@ -33,8 +33,7 @@ interface MetronomeSettingsProps {
     audioContextState: AudioContextState | undefined;
     isMicEnabled: boolean;
     onToggleMic: () => void;
-    selectedDeviceId: string | undefined;
-    onDeviceChange: (id: string) => void;
+    mediaStream: MediaStream | null;
 }
 
 export const MetronomeSettings: React.FC<MetronomeSettingsProps> = ({
@@ -60,10 +59,29 @@ export const MetronomeSettings: React.FC<MetronomeSettingsProps> = ({
     isMicEnabled,
     onToggleMic,
     selectedDeviceId,
-    onDeviceChange
+    onDeviceChange,
+    mediaStream
 }) => {
     const { t, i18n } = useTranslation();
-    // Removed local theme state
+    const [debugMode, setDebugMode] = React.useState(false);
+    const [devices, setDevices] = React.useState<MediaDeviceInfo[]>([]);
+    const [streamSettings, setStreamSettings] = React.useState<any>(null);
+
+    React.useEffect(() => {
+        if (debugMode) {
+            navigator.mediaDevices.enumerateDevices().then(setDevices);
+            if (mediaStream) {
+                const track = mediaStream.getAudioTracks()[0];
+                if (track) {
+                    setStreamSettings(track.getSettings());
+                } else {
+                    setStreamSettings({ error: "No audio track" });
+                }
+            } else {
+                setStreamSettings(null);
+            }
+        }
+    }, [debugMode, mediaStream, isMicEnabled]); // Refresh when mic toggles
 
     const toggleTheme = () => {
         const next = currentTheme === 'dark' ? 'light' : 'dark';
@@ -406,6 +424,44 @@ export const MetronomeSettings: React.FC<MetronomeSettingsProps> = ({
                     }}>
                         {visualEffectsEnabled ? t('settings.effects_on') : t('settings.effects_off')}
                     </button>
+                </div>
+
+                {/* DEBUG INFO */}
+                <div style={{ borderTop: '1px solid var(--color-border)', paddingTop: '1rem' }}>
+                    <button
+                        onClick={() => setDebugMode(!debugMode)}
+                        style={{
+                            width: '100%',
+                            background: 'transparent',
+                            border: '1px dashed var(--color-text-dim)',
+                            color: 'var(--color-text-dim)',
+                            fontSize: '0.7rem',
+                            padding: '4px'
+                        }}
+                    >
+                        {debugMode ? 'Hide Debug Info' : 'Show Debug Info'}
+                    </button>
+                    {debugMode && (
+                        <div style={{ fontSize: '0.65rem', fontFamily: 'monospace', marginTop: '0.5rem', color: 'var(--color-text)' }}>
+                            <div style={{ marginBottom: '0.5rem' }}>
+                                <strong>Active Stream Settings:</strong>
+                                <pre style={{ background: '#000', padding: '4px', overflowX: 'auto' }}>
+                                    {streamSettings ? JSON.stringify(streamSettings, null, 2) : 'No active stream'}
+                                </pre>
+                            </div>
+                            <div>
+                                <strong>Available Input Devices:</strong>
+                                <ul style={{ paddingLeft: '1rem', margin: 0 }}>
+                                    {devices.filter(d => d.kind === 'audioinput').map(d => (
+                                        <li key={d.deviceId}>
+                                            {d.label || 'Unknown'} <br />
+                                            <span style={{ color: '#888' }}>{d.deviceId.slice(0, 8)}...</span>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        </div>
+                    )}
                 </div>
 
             </div>

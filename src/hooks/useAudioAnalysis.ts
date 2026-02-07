@@ -5,9 +5,10 @@ interface UseAudioAnalysisProps {
     audioContext: AudioContext | null;
     gain?: number;
     threshold?: number;
+    isEnabled?: boolean; // New prop to control if we should even try to use mic
 }
 
-export const useAudioAnalysis = ({ audioContext, gain = 5.0, threshold = 0.1 }: UseAudioAnalysisProps) => {
+export const useAudioAnalysis = ({ audioContext, gain = 5.0, threshold = 0.1, isEnabled = true }: UseAudioAnalysisProps) => {
     const analyzerRef = useRef<AudioAnalyzer | null>(null);
     const [analyzerInstance, setAnalyzerInstance] = useState<AudioAnalyzer | null>(null);
     const [isMicReady, setIsMicReady] = useState(false);
@@ -27,6 +28,16 @@ export const useAudioAnalysis = ({ audioContext, gain = 5.0, threshold = 0.1 }: 
 
     useEffect(() => {
         // If context changes (or init), recreate analyzer
+        // ONLY if enabled
+        if (!isEnabled) {
+            if (analyzerRef.current) {
+                analyzerRef.current.stop();
+                analyzerRef.current = null;
+                setAnalyzerInstance(null);
+            }
+            return;
+        }
+
         if (audioContext && audioContext.state !== 'closed') {
             // Clean up existing if any (though effect cleanup above handles unmount, logic here handles prop change)
             if (analyzerRef.current) {
@@ -45,7 +56,7 @@ export const useAudioAnalysis = ({ audioContext, gain = 5.0, threshold = 0.1 }: 
                 setOnsets(prev => [...prev, time]);
             };
         }
-    }, [audioContext]); // Re-run when context changes
+    }, [audioContext, isEnabled]); // Re-run when context changes or enabled state changes
 
     // Update settings dynamically
     useEffect(() => {

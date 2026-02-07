@@ -151,6 +151,9 @@ export const Metronome: React.FC = () => {
     // Auto Calibration State
     const [isCalibrating, setIsCalibrating] = useState(false);
 
+    // Mic Enable State (for debugging/preference)
+    const [isMicEnabled, setIsMicEnabled] = useState(true);
+
     // Debug State
     const [debugLog, setDebugLog] = useState<string[]>([]);
     const log = (msg: string) => {
@@ -346,11 +349,24 @@ export const Metronome: React.FC = () => {
         }
     }, [expandedMeasures, setPattern]);
 
-    const { isMicReady, startAnalysis, stopAnalysis, clearOnsets, onsets, mediaStream, analyzer } = useAudioAnalysis({
+    // Audio Analysis
+    const {
+        isMicReady,
+        startAnalysis,
+        stopAnalysis,
+        onsets: detectedOnsets,
+        currentLevel,
+        analyzer
+    } = useAudioAnalysis({
         audioContext,
         gain: micGain,
-        threshold: micThreshold
+        threshold: micThreshold,
+        isEnabled: isMicEnabled
     });
+
+    // Make onsets available for calibration
+    // We need to alias detectedOnsets to 'onsets' for the rest of compiled code or just use detectedOnsets
+    const onsets = detectedOnsets;
 
     // Mirror analyzer in ref for async access
     const micAnalyzerRef = React.useRef<any>(null);
@@ -700,7 +716,7 @@ export const Metronome: React.FC = () => {
         stopAnalysis(); // Ensure mic is closed
     };
 
-    // NEW STRATEGY for Calibration:
+    // NEW STRATEGY    // Mic Calibration State
     const [calibrationState, setCalibrationState] = useState<{
         active: boolean,
         startTime: number,
@@ -708,6 +724,9 @@ export const Metronome: React.FC = () => {
         count: number,
         status: string // 'starting' | 'waiting_mic' | 'warmup' | 'listening' | 'finished'
     }>({ active: false, startTime: 0, samples: [], count: 0, status: 'starting' });
+
+    // Mic Enable State (for debugging/preference)
+    const [isMicEnabled, setIsMicEnabled] = useState(true);
 
     const calibrationTimeoutRef = React.useRef<any>(null);
 
@@ -2121,6 +2140,8 @@ export const Metronome: React.FC = () => {
                             onResetAudio={resetAudio}
                             audioContextState={audioContextState}
                             onResumeAudio={resumeAudio}
+                            isMicEnabled={isMicEnabled}
+                            onToggleMic={() => setIsMicEnabled(prev => !prev)}
                         />
                     </div>
                 )

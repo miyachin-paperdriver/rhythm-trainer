@@ -29,7 +29,10 @@ interface MetronomeSettingsProps {
     onOutputModeChange: (mode: 'speaker' | 'bluetooth') => void;
     onResetAudio: () => void;
     onResumeAudio: () => void;
-    audioContextState: AudioContextState | undefined; // new
+    onResumeAudio: () => void;
+    audioContextState: AudioContextState | undefined;
+    isMicEnabled: boolean;
+    onToggleMic: () => void;
 }
 
 export const MetronomeSettings: React.FC<MetronomeSettingsProps> = ({
@@ -51,7 +54,9 @@ export const MetronomeSettings: React.FC<MetronomeSettingsProps> = ({
     onOutputModeChange,
     onResetAudio,
     onResumeAudio,
-    audioContextState
+    audioContextState,
+    isMicEnabled,
+    onToggleMic
 }) => {
     const { t, i18n } = useTranslation();
     // Removed local theme state
@@ -288,6 +293,23 @@ export const MetronomeSettings: React.FC<MetronomeSettingsProps> = ({
                                 </svg>
                             )}
                         </label>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                            <label style={{ fontSize: '0.8rem', color: 'var(--color-text-dim)', flex: 1 }}>Enabled</label>
+                            <button
+                                onClick={onToggleMic}
+                                style={{
+                                    background: isMicEnabled ? 'var(--color-primary)' : 'var(--color-surface)',
+                                    border: '1px solid var(--color-border)',
+                                    color: isMicEnabled ? '#fff' : 'var(--color-text-dim)',
+                                    borderRadius: '12px',
+                                    padding: '2px 8px',
+                                    fontSize: '0.7rem',
+                                    cursor: 'pointer'
+                                }}
+                            >
+                                {isMicEnabled ? 'ON' : 'OFF'}
+                            </button>
+                        </div>
                         <button
                             onClick={onRunMicCalibration}
                             disabled={isMicCalibrating}

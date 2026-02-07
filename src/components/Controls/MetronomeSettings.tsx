@@ -33,6 +33,8 @@ interface MetronomeSettingsProps {
     audioContextState: AudioContextState | undefined;
     isMicEnabled: boolean;
     onToggleMic: () => void;
+    selectedDeviceId: string | undefined;
+    onDeviceChange: (id: string) => void;
     mediaStream: MediaStream | null;
 }
 

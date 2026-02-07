@@ -6,9 +6,10 @@ interface UseAudioAnalysisProps {
     gain?: number;
     threshold?: number;
     isEnabled?: boolean; // New prop to control if we should even try to use mic
+    deviceId?: string;
 }
 
-export const useAudioAnalysis = ({ audioContext, gain = 5.0, threshold = 0.1, isEnabled = true }: UseAudioAnalysisProps) => {
+export const useAudioAnalysis = ({ audioContext, gain = 5.0, threshold = 0.1, isEnabled = true, deviceId }: UseAudioAnalysisProps) => {
     const analyzerRef = useRef<AudioAnalyzer | null>(null);
     const [analyzerInstance, setAnalyzerInstance] = useState<AudioAnalyzer | null>(null);
     const [isMicReady, setIsMicReady] = useState(false);
@@ -56,7 +57,7 @@ export const useAudioAnalysis = ({ audioContext, gain = 5.0, threshold = 0.1, is
                 setOnsets(prev => [...prev, time]);
             };
         }
-    }, [audioContext, isEnabled]); // Re-run when context changes or enabled state changes
+    }, [audioContext, isEnabled, deviceId]); // Re-run when context, enabled state, or device changes
 
     // Update settings dynamically
     useEffect(() => {
@@ -74,7 +75,7 @@ export const useAudioAnalysis = ({ audioContext, gain = 5.0, threshold = 0.1, is
     const startAnalysis = useCallback(async () => {
         if (!isEnabled || !analyzerRef.current) return;
         try {
-            await analyzerRef.current.start();
+            await analyzerRef.current.start(undefined, deviceId);
             setIsMicReady(true);
             setError(null);
         } catch (e) {

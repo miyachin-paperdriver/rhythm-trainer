@@ -9,6 +9,8 @@
         "calibrating_msg": "Outputting click... Please wait.",
         "mic_settings": "Microphone Settings",
         "mic_enabled": "Enabled",
+        "input_device": "Input Device",
+        "input_device_desc": "Select 'Phone Microphone' to avoid Bluetooth Call Mode.",
         "auto_set": "Auto Set",
         "gain": "Gain",
         "sensitivity": "Threshold",

@@ -9,6 +9,8 @@
         "calibrating_msg": "クリック音を出力中... お待ちください。",
         "mic_settings": "マイク設定",
         "mic_enabled": "有効 (Enabled)",
+        "input_device": "入力デバイス",
+        "input_device_desc": "Bluetooth使用時は「本体マイク」を選択すると音質低下を防げます。",
         "auto_set": "自動設定",
         "gain": "感度 (Gain)",
         "sensitivity": "反応しきい値",

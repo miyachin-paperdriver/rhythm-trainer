@@ -378,7 +378,8 @@ export const Metronome: React.FC = () => {
         audioContext,
         gain: micGain,
         threshold: micThreshold,
-        isEnabled: isMicEnabled
+        isEnabled: isMicEnabled,
+        deviceId: selectedDeviceId
     });
 
     // Make onsets available for calibration
@@ -2151,6 +2152,8 @@ export const Metronome: React.FC = () => {
                             onResumeAudio={resumeAudio}
                             isMicEnabled={isMicEnabled}
                             onToggleMic={() => setIsMicEnabled(prev => !prev)}
+                            selectedDeviceId={selectedDeviceId}
+                            onDeviceChange={setSelectedDeviceId}
                         />
                     </div>
                 )

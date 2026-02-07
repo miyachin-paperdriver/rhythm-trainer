@@ -27,23 +27,24 @@ export class AudioAnalyzer {
         this.audioContext = audioContext;
     }
 
-    public async start(stream?: MediaStream) {
+    public async start(stream?: MediaStream, deviceId?: string) {
         if (this.isRunning) return;
 
         try {
             if (stream) {
                 this.mediaStream = stream;
             } else {
-                this.mediaStream = await navigator.mediaDevices.getUserMedia({
+                const constraints: MediaStreamConstraints = {
                     audio: {
                         echoCancellation: false,
                         noiseSuppression: false,
                         autoGainControl: false,
-                        // latency: 0, // Removed to prevent Android BT issues
-                        // channelCount: 1
-                    } as any,
+                        deviceId: deviceId ? { exact: deviceId } : undefined
+                    },
                     video: false
-                });
+                };
+
+                this.mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
             }
 
             this.source = this.audioContext.createMediaStreamSource(this.mediaStream);

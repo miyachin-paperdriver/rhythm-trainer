@@ -30,8 +30,11 @@ interface MetronomeSettingsProps {
     onResetAudio: () => void;
     onResumeAudio: () => void;
     audioContextState: AudioContextState | undefined;
+    audioContextState: AudioContextState | undefined;
     isMicEnabled: boolean;
     onToggleMic: () => void;
+    selectedDeviceId: string | undefined;
+    onDeviceChange: (id: string) => void;
 }
 
 export const MetronomeSettings: React.FC<MetronomeSettingsProps> = ({
@@ -55,7 +58,9 @@ export const MetronomeSettings: React.FC<MetronomeSettingsProps> = ({
     onResumeAudio,
     audioContextState,
     isMicEnabled,
-    onToggleMic
+    onToggleMic,
+    selectedDeviceId,
+    onDeviceChange
 }) => {
     const { t, i18n } = useTranslation();
     // Removed local theme state

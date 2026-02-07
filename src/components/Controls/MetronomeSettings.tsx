@@ -1,5 +1,6 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
+import { DeviceSelector } from './DeviceSelector';
 import { version } from '../../../package.json';
 
 interface MetronomeSettingsProps {
@@ -296,6 +297,13 @@ export const MetronomeSettings: React.FC<MetronomeSettingsProps> = ({
                                 </svg>
                             )}
                         </label>
+
+                        <DeviceSelector
+                            selectedDeviceId={selectedDeviceId}
+                            onDeviceChange={onDeviceChange}
+                            disabled={!isMicEnabled}
+                        />
+
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
                             <label style={{ fontSize: '0.8rem', color: 'var(--color-text-dim)', flex: 1 }}>{t('settings.mic_enabled')}</label>
                             <button

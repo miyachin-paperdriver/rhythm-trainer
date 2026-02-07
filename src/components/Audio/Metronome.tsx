@@ -199,8 +199,10 @@ export const Metronome: React.FC = () => {
         currentStep, lastBeatTime, isCountIn,
         setSubdivision, setGapClick, setPattern,
         audioContext,
+        audioContextState,
         initializeAudio,
-        resetAudio
+        resetAudio,
+        resumeAudio
     } = useMetronome({ audioLatency });
 
     // Media Session API Integration
@@ -2117,6 +2119,8 @@ export const Metronome: React.FC = () => {
                             outputMode={outputMode}
                             onOutputModeChange={setOutputMode}
                             onResetAudio={resetAudio}
+                            audioContextState={audioContextState}
+                            onResumeAudio={resumeAudio}
                         />
                     </div>
                 )

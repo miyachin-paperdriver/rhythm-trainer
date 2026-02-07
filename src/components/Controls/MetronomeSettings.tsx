@@ -28,6 +28,8 @@ interface MetronomeSettingsProps {
     outputMode: 'speaker' | 'bluetooth';
     onOutputModeChange: (mode: 'speaker' | 'bluetooth') => void;
     onResetAudio: () => void;
+    onResumeAudio: () => void;
+    audioContextState: AudioContextState | undefined; // new
 }
 
 export const MetronomeSettings: React.FC<MetronomeSettingsProps> = ({
@@ -47,7 +49,9 @@ export const MetronomeSettings: React.FC<MetronomeSettingsProps> = ({
     isMicCalibrating,
     outputMode,
     onOutputModeChange,
-    onResetAudio
+    onResetAudio,
+    onResumeAudio,
+    audioContextState
 }) => {
     const { t, i18n } = useTranslation();
     // Removed local theme state
@@ -186,6 +190,30 @@ export const MetronomeSettings: React.FC<MetronomeSettingsProps> = ({
                     <div style={{ fontSize: '0.7rem', color: 'var(--color-text-dim)', textAlign: 'center' }}>
                         {t('settings.reset_audio_desc')}
                     </div>
+                    {audioContextState && (
+                        <div style={{ fontSize: '0.7rem', color: audioContextState === 'running' ? 'var(--color-primary)' : 'var(--color-accent)', textAlign: 'center', marginTop: '4px' }}>
+                            State: {audioContextState}
+                        </div>
+                    )}
+
+                    {audioContextState === 'suspended' && (
+                        <button
+                            onClick={onResumeAudio}
+                            style={{
+                                marginTop: '4px',
+                                padding: '6px',
+                                fontSize: '0.75rem',
+                                background: 'var(--color-accent)',
+                                color: '#fff',
+                                border: 'none',
+                                borderRadius: '4px',
+                                cursor: 'pointer',
+                                fontWeight: 'bold'
+                            }}
+                        >
+                            {t('settings.force_resume', 'Tap to Force Resume')}
+                        </button>
+                    )}
                 </div>
 
                 {/* Latency Calibration */}

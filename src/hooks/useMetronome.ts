@@ -136,6 +136,13 @@ export const useMetronome = (options: UseMetronomeOptions = {}) => {
         }
     }, []);
 
+    const resumeAudio = useCallback(async () => {
+        if (engineRef.current?.audioContext?.state === 'suspended') {
+            await engineRef.current.audioContext.resume();
+            setAudioContext(engineRef.current.audioContext); // Trigger re-render of state
+        }
+    }, []);
+
     return {
         bpm,
         isPlaying,
@@ -151,7 +158,9 @@ export const useMetronome = (options: UseMetronomeOptions = {}) => {
         isMuted,
         isCountIn,
         audioContext,
+        audioContextState: audioContext?.state,
         initializeAudio,
-        resetAudio
+        resetAudio,
+        resumeAudio
     };
 };

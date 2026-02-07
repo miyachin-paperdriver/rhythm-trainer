@@ -13,6 +13,8 @@
         "sensitivity": "反応しきい値",
         "lower_is_more_sensitive": "数値が小さいほど敏感になります。ノイズを拾う場合は数値を上げてください。",
         "theme": "テーマ",
+        "reset_audio": "オーディオシステムをリセット",
+        "reset_audio_desc": "音が聞こえない場合や不安定な場合に使用",
         "dark": "ダーク 🌙",
         "light": "ライト ☀️",
         "visual_effects": "ビジュアルエフェクト",
@@ -135,5 +137,8 @@
             "練習あるのみ",
             "次は頑張りましょう"
         ]
-    }
+    },
+    "speakerMode": "スピーカー",
+    "headphoneMode": "BTヘッドホン",
+    "sessionFinished": "セッション終了"
 }

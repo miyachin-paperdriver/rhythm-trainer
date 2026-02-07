@@ -23,7 +23,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../../db/db';
 
 export const Metronome: React.FC = () => {
-    const { t } = useTranslation();
+    const { t, i18n } = useTranslation();
     // ---- State ----
     const [activeTab, setActiveTab] = useState<'training' | 'history' | 'editor' | 'manual' | 'settings'>(() => {
         const hasLaunched = localStorage.getItem('hasLaunched');
@@ -92,12 +92,61 @@ export const Metronome: React.FC = () => {
     const [playBars, setPlayBars] = useState(4);
     const [muteBars, setMuteBars] = useState(4);
 
-    // Latency State
-    const [audioLatency, setAudioLatency] = useState(() => Number(localStorage.getItem('audioLatency') || 0));
+    // Output Mode State
+    const [outputMode, setOutputMode] = useState<'speaker' | 'bluetooth'>(() => {
+        return (localStorage.getItem('outputMode') as 'speaker' | 'bluetooth') || 'speaker';
+    });
 
-    // Mic Settings State
-    const [micGain, setMicGain] = useState(() => Number(localStorage.getItem('micGain') || 7.0));
-    const [micThreshold, setMicThreshold] = useState(() => Number(localStorage.getItem('micThreshold') || 0.1));
+    useEffect(() => {
+        localStorage.setItem('outputMode', outputMode);
+    }, [outputMode]);
+
+    // Latency State (Independent)
+    const [audioLatencySpeaker, setAudioLatencySpeaker] = useState(() => Number(localStorage.getItem('audioLatency_speaker') || 0));
+    const [audioLatencyBT, setAudioLatencyBT] = useState(() => Number(localStorage.getItem('audioLatency_bt') || 200));
+
+    // Mic Settings State (Independent)
+    const [micGainSpeaker, setMicGainSpeaker] = useState(() => Number(localStorage.getItem('micGain_speaker') || 7.0));
+    const [micGainBT, setMicGainBT] = useState(() => Number(localStorage.getItem('micGain_bt') || 10.0)); // Higher default for BT
+
+    const [micThresholdSpeaker, setMicThresholdSpeaker] = useState(() => Number(localStorage.getItem('micThreshold_speaker') || 0.1));
+    const [micThresholdBT, setMicThresholdBT] = useState(() => Number(localStorage.getItem('micThreshold_bt') || 0.15));
+
+    // Derived Current Settings
+    const audioLatency = outputMode === 'speaker' ? audioLatencySpeaker : audioLatencyBT;
+    const micGain = outputMode === 'speaker' ? micGainSpeaker : micGainBT;
+    const micThreshold = outputMode === 'speaker' ? micThresholdSpeaker : micThresholdBT;
+
+    // Setters that update the correct state based on current mode
+    const setAudioLatency = (val: number) => {
+        if (outputMode === 'speaker') {
+            setAudioLatencySpeaker(val);
+            localStorage.setItem('audioLatency_speaker', String(val));
+        } else {
+            setAudioLatencyBT(val);
+            localStorage.setItem('audioLatency_bt', String(val));
+        }
+    };
+
+    const setMicGain = (val: number) => {
+        if (outputMode === 'speaker') {
+            setMicGainSpeaker(val);
+            localStorage.setItem('micGain_speaker', String(val));
+        } else {
+            setMicGainBT(val);
+            localStorage.setItem('micGain_bt', String(val));
+        }
+    };
+
+    const setMicThreshold = (val: number) => {
+        if (outputMode === 'speaker') {
+            setMicThresholdSpeaker(val);
+            localStorage.setItem('micThreshold_speaker', String(val));
+        } else {
+            setMicThresholdBT(val);
+            localStorage.setItem('micThreshold_bt', String(val));
+        }
+    };
 
     // Auto Calibration State
     const [isCalibrating, setIsCalibrating] = useState(false);
@@ -150,8 +199,41 @@ export const Metronome: React.FC = () => {
         currentStep, lastBeatTime, isCountIn,
         setSubdivision, setGapClick, setPattern,
         audioContext,
-        initializeAudio
+        initializeAudio,
+        resetAudio
     } = useMetronome({ audioLatency });
+
+    // Media Session API Integration
+    useEffect(() => {
+        if ('mediaSession' in navigator) {
+            navigator.mediaSession.setActionHandler('play', () => {
+                console.log('[MediaSession] Play triggered');
+                start();
+            });
+            navigator.mediaSession.setActionHandler('pause', () => {
+                console.log('[MediaSession] Pause triggered');
+                stop();
+            });
+
+            // Set initial metadata
+            navigator.mediaSession.metadata = new MediaMetadata({
+                title: 'Rhythm Trainer',
+                artist: 'Training Session'
+            });
+        }
+        return () => {
+            if ('mediaSession' in navigator) {
+                navigator.mediaSession.setActionHandler('play', null);
+                navigator.mediaSession.setActionHandler('pause', null);
+            }
+        };
+    }, [start, stop]);
+
+    useEffect(() => {
+        if ('mediaSession' in navigator) {
+            navigator.mediaSession.playbackState = isPlaying ? 'playing' : 'paused';
+        }
+    }, [isPlaying]);
 
     // timerDuration is in MINUTES, timerRemaining is in SECONDS
     const [timerDuration, setTimerDuration] = useState<number | null>(null); // minutes
@@ -232,7 +314,22 @@ export const Metronome: React.FC = () => {
         setShowCompletionOverlay(true);
         setStopRequestPending(false);
         setTimerRemaining(0);
-        // Message will be generated in the render or effect based on rank
+
+        // Voice Feedback
+        if ('speechSynthesis' in window) {
+            // Wait a moment for visual confirmation, then speak
+            setTimeout(() => {
+                const utterance = new SpeechSynthesisUtterance(t('sessionFinished'));
+                // Try to pick a Japanese voice if available and appropriate
+                const voices = window.speechSynthesis.getVoices();
+                if (i18n.language === 'ja') {
+                    const jaVoice = voices.find(v => v.lang.startsWith('ja'));
+                    if (jaVoice) utterance.voice = jaVoice;
+                }
+
+                window.speechSynthesis.speak(utterance);
+            }, 1000);
+        }
     };
 
 
@@ -2017,6 +2114,9 @@ export const Metronome: React.FC = () => {
                             onMicThresholdChange={setMicThreshold}
                             onRunMicCalibration={runMicAutoCalibration}
                             isMicCalibrating={micCalibState.active}
+                            outputMode={outputMode}
+                            onOutputModeChange={setOutputMode}
+                            onResetAudio={resetAudio}
                         />
                     </div>
                 )

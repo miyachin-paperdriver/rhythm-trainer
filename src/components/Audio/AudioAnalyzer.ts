@@ -39,9 +39,8 @@ export class AudioAnalyzer {
                         echoCancellation: false,
                         noiseSuppression: false,
                         autoGainControl: false,
-                        // Try to hint for low latency/raw audio
-                        latency: 0,
-                        channelCount: 1
+                        // latency: 0, // Removed to prevent Android BT issues
+                        // channelCount: 1
                     } as any,
                     video: false
                 });

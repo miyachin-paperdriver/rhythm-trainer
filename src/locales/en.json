@@ -10,9 +10,11 @@
         "mic_settings": "Microphone Settings",
         "auto_set": "Auto Set",
         "gain": "Gain",
-        "sensitivity": "Sensitivity",
-        "lower_is_more_sensitive": "Lower is more sensitive. Increase if too noisy.",
+        "sensitivity": "Threshold",
+        "lower_is_more_sensitive": "Lower is more sensitive",
         "theme": "Theme",
+        "reset_audio": "Reset Audio System",
+        "reset_audio_desc": "Use if audio stops or becomes unstable.",
         "dark": "Dark 🌙",
         "light": "Light ☀️",
         "visual_effects": "Visual Effects",
@@ -135,5 +137,8 @@
             "Practice makes perfect.",
             "Let's try again."
         ]
-    }
+    },
+    "speakerMode": "Speaker",
+    "headphoneMode": "Headphone",
+    "sessionFinished": "Session finished."
 }

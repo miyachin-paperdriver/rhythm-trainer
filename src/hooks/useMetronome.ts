@@ -119,6 +119,23 @@ export const useMetronome = (options: UseMetronomeOptions = {}) => {
         setAudioContext(engineRef.current?.audioContext || null);
     }, []);
 
+    const resetAudio = useCallback(async () => {
+        if (engineRef.current) {
+            // Stop and close existing
+            await engineRef.current.close();
+            // Re-init (create new context)
+            engineRef.current.init();
+
+            // Update state
+            setAudioContext(engineRef.current.audioContext);
+
+            // Restore settings that might be lost if we re-created engine? 
+            // No, we didn't recreate the engine instance in previous attempts, but now we are just cleaning up context.
+            // The engine instance preserves BPM/Pattern/etc state on itself.
+            // So we just need to ensure the audioContext is fresh.
+        }
+    }, []);
+
     return {
         bpm,
         isPlaying,
@@ -134,6 +151,7 @@ export const useMetronome = (options: UseMetronomeOptions = {}) => {
         isMuted,
         isCountIn,
         audioContext,
-        initializeAudio
+        initializeAudio,
+        resetAudio
     };
 };

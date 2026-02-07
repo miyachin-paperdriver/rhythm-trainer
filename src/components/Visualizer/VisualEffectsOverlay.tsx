@@ -97,7 +97,7 @@ export const VisualEffectsOverlay: React.FC<VisualEffectsOverlayProps> = ({
                     x: centerX,
                     y: centerY,
                     angle: (Math.PI * 2 * i) / particleCount + Math.random() * 0.4,
-                    speed: fullscreen ? (120 + Math.random() * 80) : (60 + Math.random() * 40),
+                    speed: fullscreen ? (120 + Math.random() * 80) : (60 + Math.random() * 40), // Reverted to normal distance
                     size: fullscreen ? (4 + Math.random() * 6) : (3 + Math.random() * 4),
                     color: colors.particles[Math.floor(Math.random() * colors.particles.length)],
                     timestamp: Date.now()
@@ -195,7 +195,7 @@ export const VisualEffectsOverlay: React.FC<VisualEffectsOverlayProps> = ({
                                     scale: 0.3
                                 }}
                                 exit={{ opacity: 0 }}
-                                transition={{ duration: fullscreen ? 0.7 : 0.5, ease: 'easeOut' }}
+                                transition={{ duration: fullscreen ? 0.3 : 0.2, ease: 'easeOut' }} // Short duration for fast spark effect
                                 style={{
                                     position: 'absolute',
                                     width: particle.size,

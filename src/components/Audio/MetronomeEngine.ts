@@ -141,6 +141,14 @@ export class MetronomeEngine {
         this.stopSilentAudio();
     }
 
+    public async close() {
+        this.stop();
+        if (this.audioContext && this.audioContext.state !== 'closed') {
+            await this.audioContext.close();
+        }
+        this.audioContext = null;
+    }
+
     public setBpm(bpm: number) { this.bpm = bpm; }
     public getBpm(): number { return this.bpm; }
 

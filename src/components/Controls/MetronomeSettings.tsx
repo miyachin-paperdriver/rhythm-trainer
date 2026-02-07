@@ -29,7 +29,6 @@ interface MetronomeSettingsProps {
     onOutputModeChange: (mode: 'speaker' | 'bluetooth') => void;
     onResetAudio: () => void;
     onResumeAudio: () => void;
-    onResumeAudio: () => void;
     audioContextState: AudioContextState | undefined;
     isMicEnabled: boolean;
     onToggleMic: () => void;

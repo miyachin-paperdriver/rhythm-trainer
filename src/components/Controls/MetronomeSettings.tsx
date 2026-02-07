@@ -30,7 +30,6 @@ interface MetronomeSettingsProps {
     onResetAudio: () => void;
     onResumeAudio: () => void;
     audioContextState: AudioContextState | undefined;
-    audioContextState: AudioContextState | undefined;
     isMicEnabled: boolean;
     onToggleMic: () => void;
     selectedDeviceId: string | undefined;

@@ -181,6 +181,17 @@ export const Metronome: React.FC = () => {
         return (localStorage.getItem('theme') as 'light' | 'dark') || 'light';
     });
 
+    // Mic Device Selection
+    const [selectedDeviceId, setSelectedDeviceId] = useState<string | undefined>(() => {
+        return localStorage.getItem('selectedDeviceId') || undefined;
+    });
+
+    useEffect(() => {
+        if (selectedDeviceId) {
+            localStorage.setItem('selectedDeviceId', selectedDeviceId);
+        }
+    }, [selectedDeviceId]);
+
     // Visual Effects State
     const [visualEffectsEnabled, setVisualEffectsEnabled] = useState(() => {
         const stored = localStorage.getItem('visualEffectsEnabled');

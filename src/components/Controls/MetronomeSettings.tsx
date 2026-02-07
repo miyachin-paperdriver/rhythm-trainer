@@ -293,7 +293,7 @@ export const MetronomeSettings: React.FC<MetronomeSettingsProps> = ({
                             )}
                         </label>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
-                            <label style={{ fontSize: '0.8rem', color: 'var(--color-text-dim)', flex: 1 }}>Enabled</label>
+                            <label style={{ fontSize: '0.8rem', color: 'var(--color-text-dim)', flex: 1 }}>{t('settings.mic_enabled')}</label>
                             <button
                                 onClick={onToggleMic}
                                 style={{

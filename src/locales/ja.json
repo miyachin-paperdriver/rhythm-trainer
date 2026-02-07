@@ -8,6 +8,7 @@
         "running": "測定中...",
         "calibrating_msg": "クリック音を出力中... お待ちください。",
         "mic_settings": "マイク設定",
+        "mic_enabled": "有効 (Enabled)",
         "auto_set": "自動設定",
         "gain": "感度 (Gain)",
         "sensitivity": "反応しきい値",

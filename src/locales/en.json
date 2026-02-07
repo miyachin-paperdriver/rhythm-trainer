@@ -8,6 +8,7 @@
         "running": "Running...",
         "calibrating_msg": "Outputting click... Please wait.",
         "mic_settings": "Microphone Settings",
+        "mic_enabled": "Enabled",
         "auto_set": "Auto Set",
         "gain": "Gain",
         "sensitivity": "Threshold",

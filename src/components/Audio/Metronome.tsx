@@ -725,8 +725,7 @@ export const Metronome: React.FC = () => {
         status: string // 'starting' | 'waiting_mic' | 'warmup' | 'listening' | 'finished'
     }>({ active: false, startTime: 0, samples: [], count: 0, status: 'starting' });
 
-    // Mic Enable State (for debugging/preference)
-    const [isMicEnabled, setIsMicEnabled] = useState(true);
+
 
     const calibrationTimeoutRef = React.useRef<any>(null);
 

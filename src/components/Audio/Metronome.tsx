@@ -152,7 +152,22 @@ export const Metronome: React.FC = () => {
     const [isCalibrating, setIsCalibrating] = useState(false);
 
     // Mic Enable State (for debugging/preference)
-    const [isMicEnabled, setIsMicEnabled] = useState(true);
+    const [isMicEnabled, setIsMicEnabled] = useState(() => {
+        const stored = localStorage.getItem('isMicEnabled');
+        return stored !== null ? stored === 'true' : true; // Default: true
+    });
+
+    useEffect(() => {
+        localStorage.setItem('isMicEnabled', String(isMicEnabled));
+    }, [isMicEnabled]);
+
+    // Auto-disable mic when switching to Bluetooth mode to prevent "Call Mode"
+    useEffect(() => {
+        if (outputMode === 'bluetooth' && isMicEnabled) {
+            console.log('[Auto] Disabling Mic for Bluetooth Mode');
+            setIsMicEnabled(false);
+        }
+    }, [outputMode]);
 
     // Debug State
     const [debugLog, setDebugLog] = useState<string[]>([]);

@@ -20,7 +20,8 @@
         "light": "ライト ☀️",
         "visual_effects": "ビジュアルエフェクト",
         "effects_on": "オン ✨",
-        "effects_off": "オフ"
+        "effects_off": "オフ",
+        "bluetooth_mic_warning": "⚠️ BluetoothでマイクをONにすると、音質が低下(通話モード)する場合があります。"
     },
     "tabs": {
         "training": "トレーニング",

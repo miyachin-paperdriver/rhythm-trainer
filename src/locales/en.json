@@ -20,7 +20,8 @@
         "light": "Light ☀️",
         "visual_effects": "Visual Effects",
         "effects_on": "On ✨",
-        "effects_off": "Off"
+        "effects_off": "Off",
+        "bluetooth_mic_warning": "⚠️ Enabling mic with Bluetooth may degrade audio quality (Call Mode)."
     },
     "tabs": {
         "training": "Training",

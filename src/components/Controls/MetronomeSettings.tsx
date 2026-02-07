@@ -309,6 +309,11 @@ export const MetronomeSettings: React.FC<MetronomeSettingsProps> = ({
                                 {isMicEnabled ? 'ON' : 'OFF'}
                             </button>
                         </div>
+                        {outputMode === 'bluetooth' && isMicEnabled && (
+                            <div style={{ fontSize: '0.7rem', color: 'var(--color-accent)', marginBottom: '0.5rem' }}>
+                                {t('settings.bluetooth_mic_warning')}
+                            </div>
+                        )}
                         <button
                             onClick={onRunMicCalibration}
                             disabled={isMicCalibrating}

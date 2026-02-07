@@ -72,7 +72,7 @@ export const useAudioAnalysis = ({ audioContext, gain = 5.0, threshold = 0.1, is
     }, [threshold]);
 
     const startAnalysis = useCallback(async () => {
-        if (!analyzerRef.current) return;
+        if (!isEnabled || !analyzerRef.current) return;
         try {
             await analyzerRef.current.start();
             setIsMicReady(true);

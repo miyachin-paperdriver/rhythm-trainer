@@ -15,19 +15,37 @@ export const useAudioAnalysis = ({ audioContext, gain = 5.0, threshold = 0.1 }: 
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
-        if (audioContext && !analyzerRef.current) {
+        // Cleanup function for previous instance
+        return () => {
+            if (analyzerRef.current) {
+                analyzerRef.current.stop();
+                analyzerRef.current = null;
+            }
+            setAnalyzerInstance(null);
+        };
+    }, []);
+
+    useEffect(() => {
+        // If context changes (or init), recreate analyzer
+        if (audioContext && audioContext.state !== 'closed') {
+            // Clean up existing if any (though effect cleanup above handles unmount, logic here handles prop change)
+            if (analyzerRef.current) {
+                analyzerRef.current.stop();
+            }
+
             analyzerRef.current = new AudioAnalyzer(audioContext);
             setAnalyzerInstance(analyzerRef.current);
-            // safe defaults or sync with props
+
+            // Apply current settings
             analyzerRef.current.setGain(gain);
             analyzerRef.current.setThreshold(threshold);
 
             analyzerRef.current.onOnset = (time) => {
                 console.log('Onset detected at', time);
-                setOnsets(prev => [...prev, time]); // Keep all onsets
+                setOnsets(prev => [...prev, time]);
             };
         }
-    }, [audioContext]);
+    }, [audioContext]); // Re-run when context changes
 
     // Update settings dynamically
     useEffect(() => {

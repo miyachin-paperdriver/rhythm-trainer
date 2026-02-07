@@ -80,7 +80,10 @@ export class AudioAnalyzer {
             cancelAnimationFrame(this.animationFrameId);
         }
         if (this.mediaStream) {
-            this.mediaStream.getTracks().forEach(track => track.stop());
+            this.mediaStream.getTracks().forEach(track => {
+                track.stop();
+                console.log('Track stopped:', track.label);
+            });
             this.mediaStream = null;
         }
 

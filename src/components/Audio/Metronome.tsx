@@ -355,8 +355,10 @@ export const Metronome: React.FC = () => {
         startAnalysis,
         stopAnalysis,
         onsets: detectedOnsets,
-        currentLevel,
-        analyzer
+
+        analyzer,
+        mediaStream,
+        clearOnsets
     } = useAudioAnalysis({
         audioContext,
         gain: micGain,
@@ -1039,13 +1041,6 @@ export const Metronome: React.FC = () => {
             stopAnalysis(); // Always stop mic
             recordingStartedRef.current = false;
         } else {
-            // Clear previous session data immediately on start
-            clearRecording();
-            clearOnsets();
-            setBeatHistory([]); // Clear history
-            recordingStartedRef.current = false;
-            setSummaryTab('total'); // Reset tab
-
             // Clear previous session data immediately on start
             clearRecording();
             clearOnsets();

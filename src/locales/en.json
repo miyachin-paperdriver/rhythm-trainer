@@ -23,7 +23,13 @@
         "visual_effects": "Visual Effects",
         "effects_on": "On ✨",
         "effects_off": "Off",
-        "bluetooth_mic_warning": "⚠️ Enabling mic with Bluetooth may degrade audio quality (Call Mode)."
+        "bluetooth_mic_warning": "⚠️ Enabling mic with Bluetooth may degrade audio quality (Call Mode).",
+        "debug_show": "Show Debug Info",
+        "debug_hide": "Hide Debug Info",
+        "debug_active_stream": "Active Stream Settings",
+        "debug_input_devices": "Available Input Devices",
+        "debug_no_stream": "No active stream",
+        "debug_unknown": "Unknown"
     },
     "tabs": {
         "training": "Training",

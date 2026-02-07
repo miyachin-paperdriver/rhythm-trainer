@@ -23,7 +23,13 @@
         "visual_effects": "ビジュアルエフェクト",
         "effects_on": "オン ✨",
         "effects_off": "オフ",
-        "bluetooth_mic_warning": "⚠️ BluetoothでマイクをONにすると、音質が低下(通話モード)する場合があります。"
+        "bluetooth_mic_warning": "⚠️ BluetoothでマイクをONにすると、音質が低下(通話モード)する場合があります。",
+        "debug_show": "デバッグ情報を表示",
+        "debug_hide": "デバッグ情報を隠す",
+        "debug_active_stream": "アクティブなストリーム設定",
+        "debug_input_devices": "利用可能な入力デバイス",
+        "debug_no_stream": "ストリームなし",
+        "debug_unknown": "不明"
     },
     "tabs": {
         "training": "トレーニング",

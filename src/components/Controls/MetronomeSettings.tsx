@@ -441,22 +441,22 @@ export const MetronomeSettings: React.FC<MetronomeSettingsProps> = ({
                             padding: '4px'
                         }}
                     >
-                        {debugMode ? 'Hide Debug Info' : 'Show Debug Info'}
+                        {debugMode ? t('settings.debug_hide') : t('settings.debug_show')}
                     </button>
                     {debugMode && (
                         <div style={{ fontSize: '0.65rem', fontFamily: 'monospace', marginTop: '0.5rem', color: 'var(--color-text)' }}>
                             <div style={{ marginBottom: '0.5rem' }}>
-                                <strong>Active Stream Settings:</strong>
+                                <strong>{t('settings.debug_active_stream')}:</strong>
                                 <pre style={{ background: '#000', padding: '4px', overflowX: 'auto' }}>
-                                    {streamSettings ? JSON.stringify(streamSettings, null, 2) : 'No active stream'}
+                                    {streamSettings ? JSON.stringify(streamSettings, null, 2) : t('settings.debug_no_stream')}
                                 </pre>
                             </div>
                             <div>
-                                <strong>Available Input Devices:</strong>
+                                <strong>{t('settings.debug_input_devices')}:</strong>
                                 <ul style={{ paddingLeft: '1rem', margin: 0 }}>
                                     {devices.filter(d => d.kind === 'audioinput').map(d => (
                                         <li key={d.deviceId}>
-                                            {d.label || 'Unknown'} <br />
+                                            {d.label || t('settings.debug_unknown')} <br />
                                             <span style={{ color: '#888' }}>{d.deviceId.slice(0, 8)}...</span>
                                         </li>
                                     ))}

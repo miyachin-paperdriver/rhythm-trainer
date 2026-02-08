@@ -1164,11 +1164,6 @@ export const Metronome: React.FC = () => {
         }
     }, [isPlaying, calibrationState.active, micCalibState.active, stopAnalysis, stopRecording]);
 
-    // Theme Handler (Updated to use state)
-    const handleThemeChange = (newTheme: 'light' | 'dark') => {
-        setTheme(newTheme);
-    };
-
     // ---- Render ----
     return (
         <section className="metronome-container" style={{ padding: '1rem 0', width: '100%', boxSizing: 'border-box', margin: '0 auto', position: 'relative' }}>

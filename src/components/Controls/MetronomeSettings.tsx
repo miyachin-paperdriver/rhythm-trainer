@@ -451,35 +451,38 @@ export const MetronomeSettings: React.FC<MetronomeSettingsProps> = ({
                             fontFamily: 'monospace',
                             marginTop: '0.5rem',
                             padding: '8px',
-                            background: '#000000',
-                            color: '#ffffff',
+                            background: '#ffffff',
+                            color: '#000000',
                             borderRadius: '4px',
-                            border: '1px solid #333'
+                            border: '1px solid #999'
                         }}>
                             <div style={{ marginBottom: '0.5rem' }}>
-                                <strong style={{ color: '#00ffff' }}>{t('settings.debug_active_stream')}:</strong>
+                                <strong style={{ color: '#0066cc' }}>{t('settings.debug_active_stream')}:</strong>
                                 <pre style={{
                                     margin: '4px 0',
                                     whiteSpace: 'pre-wrap',
                                     wordBreak: 'break-all',
-                                    color: '#ffffff'
+                                    color: '#000000',
+                                    background: '#f5f5f5',
+                                    padding: '4px',
+                                    borderRadius: '2px'
                                 }}>
                                     {streamSettings ? JSON.stringify(streamSettings, null, 2) : t('settings.debug_no_stream')}
                                 </pre>
                             </div>
                             <div>
-                                <strong style={{ color: '#00ffff' }}>{t('settings.debug_input_devices')}:</strong>
+                                <strong style={{ color: '#0066cc' }}>{t('settings.debug_input_devices')}:</strong>
                                 <ul style={{ paddingLeft: '1rem', margin: '4px 0', listStyle: 'disc' }}>
                                     {devices.filter(d => d.kind === 'audioinput').map(d => (
                                         <li key={d.deviceId} style={{ marginBottom: '2px' }}>
-                                            <span style={{ color: '#ffffff' }}>{d.label || t('settings.debug_unknown')}</span> <br />
-                                            <span style={{ color: '#aaaaaa', fontSize: '0.65rem' }}>{d.deviceId.slice(0, 8)}...</span>
+                                            <span style={{ color: '#000000' }}>{d.label || t('settings.debug_unknown')}</span> <br />
+                                            <span style={{ color: '#666666', fontSize: '0.65rem' }}>{d.deviceId.slice(0, 8)}...</span>
                                         </li>
                                     ))}
                                 </ul>
                             </div>
                             {micError && (
-                                <div style={{ marginTop: '0.5rem', color: '#ff5555', fontWeight: 'bold' }}>
+                                <div style={{ marginTop: '0.5rem', color: '#cc0000', fontWeight: 'bold' }}>
                                     Error: {micError}
                                 </div>
                             )}

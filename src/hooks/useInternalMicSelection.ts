@@ -15,10 +15,8 @@ export const useInternalMicSelection = (
     useEffect(() => {
         // Only run if we are in headphone mode and haven't scanned/selected yet
         // OR if permissions just became ready
-        if (outputMode !== 'headphone') {
-            setScanned(false); // Reset scan state if mode changes back
-            return;
-        }
+        // Run for both speaker and headphone modes as user requested
+        // if (outputMode !== 'headphone') { ... }
 
         if (scanned && currentDeviceId) return; // Already handled
 

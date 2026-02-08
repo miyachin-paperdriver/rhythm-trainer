@@ -127,13 +127,12 @@ export const useMetronome = (options: UseMetronomeOptions = {}) => {
             engineRef.current.init();
 
             // Update state
-            setAudioContext(engineRef.current.audioContext);
+            const newCtx = engineRef.current.audioContext;
+            setAudioContext(newCtx);
 
-            // Restore settings that might be lost if we re-created engine? 
-            // No, we didn't recreate the engine instance in previous attempts, but now we are just cleaning up context.
-            // The engine instance preserves BPM/Pattern/etc state on itself.
-            // So we just need to ensure the audioContext is fresh.
+            return newCtx;
         }
+        return null;
     }, []);
 
     const resumeAudio = useCallback(async () => {

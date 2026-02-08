@@ -84,7 +84,10 @@ export class MetronomeEngine {
 
         this.tickIndex = -(4 * countInSubdivision);
         this.currentTickIndex = this.tickIndex; // Sync count-in index
-        this.nextNoteTime = this.audioContext!.currentTime + 0.1;
+
+        // [FIX] Schedule first note further in future to allow hardware to wake up/unmute
+        // 0.1s is too fast for Bluetooth/Android switching. 0.6s ensures 1st beat is heard.
+        this.nextNoteTime = this.audioContext!.currentTime + 0.6;
         this.scheduler();
     }
 

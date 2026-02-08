@@ -446,27 +446,41 @@ export const MetronomeSettings: React.FC<MetronomeSettingsProps> = ({
                         {debugMode ? t('settings.debug_hide') : t('settings.debug_show')}
                     </button>
                     {debugMode && (
-                        <div style={{ fontSize: '0.65rem', fontFamily: 'monospace', marginTop: '0.5rem', color: 'var(--color-text)' }}>
+                        <div style={{
+                            fontSize: '0.75rem',
+                            fontFamily: 'monospace',
+                            marginTop: '0.5rem',
+                            padding: '8px',
+                            background: '#000000',
+                            color: '#ffffff',
+                            borderRadius: '4px',
+                            border: '1px solid #333'
+                        }}>
                             <div style={{ marginBottom: '0.5rem' }}>
-                                <strong>{t('settings.debug_active_stream')}:</strong>
-                                <pre style={{ background: '#000', color: '#fff', padding: '4px', overflowX: 'auto' }}>
+                                <strong style={{ color: '#00ffff' }}>{t('settings.debug_active_stream')}:</strong>
+                                <pre style={{
+                                    margin: '4px 0',
+                                    whiteSpace: 'pre-wrap',
+                                    wordBreak: 'break-all',
+                                    color: '#ffffff'
+                                }}>
                                     {streamSettings ? JSON.stringify(streamSettings, null, 2) : t('settings.debug_no_stream')}
                                 </pre>
                             </div>
                             <div>
-                                <strong>{t('settings.debug_input_devices')}:</strong>
-                                <ul style={{ paddingLeft: '1rem', margin: 0 }}>
+                                <strong style={{ color: '#00ffff' }}>{t('settings.debug_input_devices')}:</strong>
+                                <ul style={{ paddingLeft: '1rem', margin: '4px 0', listStyle: 'disc' }}>
                                     {devices.filter(d => d.kind === 'audioinput').map(d => (
-                                        <li key={d.deviceId}>
-                                            {d.label || t('settings.debug_unknown')} <br />
-                                            <span style={{ color: '#888' }}>{d.deviceId.slice(0, 8)}...</span>
+                                        <li key={d.deviceId} style={{ marginBottom: '2px' }}>
+                                            <span style={{ color: '#ffffff' }}>{d.label || t('settings.debug_unknown')}</span> <br />
+                                            <span style={{ color: '#aaaaaa', fontSize: '0.65rem' }}>{d.deviceId.slice(0, 8)}...</span>
                                         </li>
                                     ))}
                                 </ul>
                             </div>
                             {micError && (
-                                <div style={{ marginTop: '0.5rem', color: 'red' }}>
-                                    <strong>Error:</strong> {micError}
+                                <div style={{ marginTop: '0.5rem', color: '#ff5555', fontWeight: 'bold' }}>
+                                    Error: {micError}
                                 </div>
                             )}
                         </div>

@@ -423,6 +423,36 @@ export const MetronomeSettings: React.FC<MetronomeSettingsProps> = ({
                                     Error: {micError}
                                 </div>
                             )}
+
+                            {/* Audio Output Test */}
+                            <div style={{ marginTop: '0.5rem', borderTop: '1px solid #eee', paddingTop: '0.5rem' }}>
+                                <button
+                                    onClick={() => {
+                                        const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+                                        const osc = ctx.createOscillator();
+                                        const gain = ctx.createGain();
+                                        osc.connect(gain);
+                                        gain.connect(ctx.destination);
+                                        osc.frequency.value = 880;
+                                        gain.gain.value = 0.5;
+                                        osc.start();
+                                        setTimeout(() => {
+                                            osc.stop();
+                                            ctx.close();
+                                        }, 200);
+                                    }}
+                                    style={{
+                                        background: '#eee',
+                                        border: '1px solid #ccc',
+                                        padding: '4px 8px',
+                                        fontSize: '0.7rem',
+                                        cursor: 'pointer',
+                                        borderRadius: '4px'
+                                    }}
+                                >
+                                    Test Beep (New Context)
+                                </button>
+                            </div>
                         </div>
                     )}
                 </div>

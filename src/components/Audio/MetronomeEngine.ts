@@ -101,7 +101,17 @@ export class MetronomeEngine {
 
     private silentAudio: HTMLAudioElement | null = null;
 
+    private isIOS(): boolean {
+        return /iPhone|iPad|iPod/i.test(navigator.userAgent);
+    }
+
     private startSilentAudio() {
+        // Only run this hack on iOS
+        if (!this.isIOS()) {
+            console.log('[MetronomeEngine] Skipping Silent Audio (Not iOS)');
+            return;
+        }
+
         if (!this.silentAudio) {
             this.silentAudio = document.createElement('audio');
             // Tiny silent MP3

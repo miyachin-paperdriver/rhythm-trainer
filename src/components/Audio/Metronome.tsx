@@ -157,23 +157,13 @@ export const Metronome: React.FC = () => {
     // Auto Calibration State
     const [isCalibrating, setIsCalibrating] = useState(false);
 
-    // Mic Enable State (for debugging/preference)
-    const [isMicEnabled, setIsMicEnabled] = useState(() => {
-        const stored = localStorage.getItem('isMicEnabled');
-        return stored !== null ? stored === 'true' : true; // Default: true
-    });
+    // Mic is ALWAYS enabled now per user request
+    const isMicEnabled = true;
 
     useEffect(() => {
-        localStorage.setItem('isMicEnabled', String(isMicEnabled));
-    }, [isMicEnabled]);
-
-    // Auto-disable mic when switching to Bluetooth mode to prevent "Call Mode"
-    useEffect(() => {
-        if (outputMode === 'headphone' && isMicEnabled) {
-            console.log('[Auto] Disabling Mic for Headphone Mode');
-            setIsMicEnabled(false);
-        }
-    }, [outputMode]);
+        // Ensure legacy state doesn't interfere if we ever revert to using localStorage
+        localStorage.setItem('isMicEnabled', 'true');
+    }, []);
 
     // Debug State
     const [debugLog, setDebugLog] = useState<string[]>([]);
@@ -2147,13 +2137,13 @@ export const Metronome: React.FC = () => {
                     <div style={{ height: 'calc(100vh - 160px)', padding: '0 1rem' }}>
                         <MetronomeSettings
                             currentTheme={theme}
-                            onThemeChange={handleThemeChange}
+                            onThemeChange={setTheme}
                             visualEffectsEnabled={visualEffectsEnabled}
                             onVisualEffectsChange={setVisualEffectsEnabled}
                             audioLatency={audioLatency}
                             onAudioLatencyChange={setAudioLatency}
                             onRunAutoCalibration={runCalibration}
-                            isCalibrating={calibrationState.active}
+                            isCalibrating={isCalibrating}
                             micGain={micGain}
                             onMicGainChange={setMicGain}
                             micThreshold={micThreshold}
@@ -2164,7 +2154,7 @@ export const Metronome: React.FC = () => {
                             onOutputModeChange={setOutputMode}
                             mediaStream={mediaStream}
                             micError={micError}
-                            currentLevel={analyzer?.currentLevel || 0}
+                            currentLevel={currentLevel}
                         />
                     </div>
                 )

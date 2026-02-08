@@ -123,133 +123,128 @@ export const MetronomeSettings: React.FC<MetronomeSettingsProps> = ({
                         {i18n.language === 'en' ? 'English' : '日本語'}
                     </button>
                 </div>
+            </div>
 
-                {/* Output Mode Toggle */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                    <label style={{ fontSize: '0.85rem', color: 'var(--color-text-dim)' }}>Output Mode</label>
-                    <div style={{ display: 'flex', background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', padding: '2px' }}>
-                        <button
-                            onClick={() => onOutputModeChange('speaker')}
+            {/* Output Mode Toggle */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                <label style={{ fontSize: '0.85rem', color: 'var(--color-text-dim)' }}>Output Mode</label>
+                <div style={{ display: 'flex', background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', padding: '2px' }}>
+                    <button
+                        onClick={() => onOutputModeChange('speaker')}
+                        style={{
+                            flex: 1,
+                            padding: '8px',
+                            border: 'none',
+                            background: outputMode === 'speaker' ? 'var(--color-primary)' : 'transparent',
+                            color: outputMode === 'speaker' ? '#fff' : 'var(--color-text-dim)',
+                            borderRadius: 'var(--radius-sm)',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s',
+                            fontWeight: 'bold',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '6px',
+                            whiteSpace: 'nowrap'
+                        }}
+                    >
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                            <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+                        </svg>
+                        {t('speakerMode')}
+                    </button>
+                    <button
+                        onClick={() => onOutputModeChange('headphone')}
+                        style={{
+                            flex: 1,
+                            padding: '8px',
+                            border: 'none',
+                            background: outputMode === 'headphone' ? 'var(--color-primary)' : 'transparent',
+                            color: outputMode === 'headphone' ? '#fff' : 'var(--color-text-dim)',
+                            borderRadius: 'var(--radius-sm)',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s',
+                            fontWeight: 'bold',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '6px',
+                            whiteSpace: 'nowrap'
+                        }}
+                    >
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M3 18v-6a9 9 0 0 1 18 0v6"></path>
+                            <path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"></path>
+                        </svg>
+                        {t('headphoneMode')}
+                    </button>
+                </div>
+            </div>
+
+
+
+            {/* Latency Calibration */}
+            <div>
+                <label style={{ display: 'flex', alignItems: 'center', marginBottom: '0.5rem', fontSize: '0.85rem', color: 'var(--color-text-dim)' }}>
+                    {t('settings.latency_calibration')}
+                    {outputMode === 'speaker' ? (
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginLeft: '6px', opacity: 0.8 }}>
+                            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                            <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+                        </svg>
+                    ) : (
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginLeft: '6px', opacity: 0.8 }}>
+                            <path d="M3 18v-6a9 9 0 0 1 18 0v6"></path>
+                            <path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"></path>
+                        </svg>
+                    )}
+                </label>
+                <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-end' }}>
+                    <div style={{ flex: 1 }}>
+                        <label style={{ fontSize: '0.85rem', color: 'var(--color-text-dim)' }}>{t('settings.audio_latency')}</label>
+                        <input
+                            type="number"
+                            value={audioLatency}
+                            onChange={e => onAudioLatencyChange(Number(e.target.value))}
                             style={{
-                                flex: 1,
+                                width: '100%',
                                 padding: '8px',
+                                borderRadius: 'var(--radius-md)',
+                                border: '1px solid var(--color-border)',
+                                background: 'var(--color-surface)',
+                                color: 'var(--color-text)'
+                            }}
+                        />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                        <button
+                            onClick={onRunAutoCalibration}
+                            disabled={isCalibrating}
+                            style={{
+                                width: '100%',
+                                padding: '8px',
+                                borderRadius: 'var(--radius-md)',
                                 border: 'none',
-                                background: outputMode === 'speaker' ? 'var(--color-primary)' : 'transparent',
-                                color: outputMode === 'speaker' ? '#fff' : 'var(--color-text-dim)',
-                                borderRadius: 'var(--radius-sm)',
-                                cursor: 'pointer',
-                                transition: 'all 0.2s',
+                                background: isCalibrating ? 'var(--color-surface-hover)' : 'var(--color-primary)',
+                                color: isCalibrating ? 'var(--color-text-dim)' : '#fff',
                                 fontWeight: 'bold',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                gap: '6px',
-                                whiteSpace: 'nowrap'
+                                cursor: isCalibrating ? 'wait' : 'pointer'
                             }}
                         >
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
-                                <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
-                            </svg>
-                            {t('speakerMode')}
-                        </button>
-                        <button
-                            onClick={() => onOutputModeChange('headphone')}
-                            style={{
-                                flex: 1,
-                                padding: '8px',
-                                border: 'none',
-                                background: outputMode === 'headphone' ? 'var(--color-primary)' : 'transparent',
-                                color: outputMode === 'headphone' ? '#fff' : 'var(--color-text-dim)',
-                                borderRadius: 'var(--radius-sm)',
-                                cursor: 'pointer',
-                                transition: 'all 0.2s',
-                                fontWeight: 'bold',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                gap: '6px',
-                                whiteSpace: 'nowrap'
-                            }}
-                        >
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                <path d="M3 18v-6a9 9 0 0 1 18 0v6"></path>
-                                <path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"></path>
-                            </svg>
-                            {t('headphoneMode')}
+                            {isCalibrating ? t('settings.running') : t('settings.auto_check')}
                         </button>
                     </div>
                 </div>
+                {isCalibrating && <div style={{ fontSize: '0.7rem', color: 'var(--color-accent)', marginTop: '4px' }}>{t('settings.calibrating_msg')}</div>}
+            </div>
 
-
-
-                {/* Latency Calibration */}
-                <div>
-                    <label style={{ display: 'flex', alignItems: 'center', marginBottom: '0.5rem', fontSize: '0.85rem', color: 'var(--color-text-dim)' }}>
-                        {t('settings.latency_calibration')}
-                        {outputMode === 'speaker' ? (
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginLeft: '6px', opacity: 0.8 }}>
-                                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
-                                <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
-                            </svg>
-                        ) : (
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginLeft: '6px', opacity: 0.8 }}>
-                                <path d="M3 18v-6a9 9 0 0 1 18 0v6"></path>
-                                <path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"></path>
-                            </svg>
-                        )}
-                    </label>
-                    <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-end' }}>
-                        <div style={{ flex: 1 }}>
-                            <label style={{ fontSize: '0.85rem', color: 'var(--color-text-dim)' }}>{t('settings.audio_latency')}</label>
-                            <input
-                                type="number"
-                                value={audioLatency}
-                                onChange={e => onAudioLatencyChange(Number(e.target.value))}
-                                style={{
-                                    width: '100%',
-                                    padding: '8px',
-                                    borderRadius: 'var(--radius-md)',
-                                    border: '1px solid var(--color-border)',
-                                    background: 'var(--color-surface)',
-                                    color: 'var(--color-text)'
-                                }}
-                            />
-                        </div>
-                        <div style={{ flex: 1 }}>
-                            <button
-                                onClick={onRunAutoCalibration}
-                                disabled={isCalibrating}
-                                style={{
-                                    width: '100%',
-                                    padding: '8px',
-                                    borderRadius: 'var(--radius-md)',
-                                    border: 'none',
-                                    background: isCalibrating ? 'var(--color-surface-hover)' : 'var(--color-primary)',
-                                    color: isCalibrating ? 'var(--color-text-dim)' : '#fff',
-                                    fontWeight: 'bold',
-                                    cursor: isCalibrating ? 'wait' : 'pointer'
-                                }}
-                            >
-                                {isCalibrating ? t('settings.running') : t('settings.auto_check')}
-                            </button>
-                        </div>
-                    </div>
-                    {isCalibrating && <div style={{ fontSize: '0.7rem', color: 'var(--color-accent)', marginTop: '4px' }}>{t('settings.calibrating_msg')}</div>}
-                </div>
-
-                {/* Mic Settings (Gain/Threshold) always visible now since mic is always on */}
-                <div style={{ marginBottom: '1.5rem', borderTop: '1px solid var(--color-border)', paddingTop: '1rem' }}>
-                    <div style={{ marginBottom: '1rem' }}>
-                        <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem', color: 'var(--color-text)' }}>
-                            {t('settings.mic_settings')}
-                        </h3>
-                        <div style={{ fontSize: '0.7rem', color: 'var(--color-text-dim)', marginBottom: '1rem' }}>
-                            {/* iOS Tip */}
-                            {t('settings.ios_mic_tip')}
-                        </div>
-                    </div>
-
+            {/* Mic Settings (Gain/Threshold) always visible now since mic is always on */}
+            <div style={{ marginBottom: '1.5rem', borderTop: '1px solid var(--color-border)', paddingTop: '1rem' }}>
+                <div style={{ marginBottom: '1rem' }}>
+                    <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem', color: 'var(--color-text)' }}>
+                        {t('settings.mic_settings')}
+                    </h3>
                     {/* Gain Control */}
                     <div style={{ marginBottom: '1rem' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>

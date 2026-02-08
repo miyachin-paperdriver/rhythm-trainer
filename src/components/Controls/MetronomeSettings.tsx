@@ -1,6 +1,6 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { RippleButton } from './RippleButton';
+
 import { version } from '../../../package.json';
 
 interface MetronomeSettingsProps {
@@ -26,8 +26,8 @@ interface MetronomeSettingsProps {
     onMicThresholdChange: (val: number) => void;
     onRunMicCalibration: () => void;
     isMicCalibrating: boolean;
-    outputMode: 'speaker' | 'bluetooth';
-    onOutputModeChange: (mode: 'speaker' | 'bluetooth') => void;
+    outputMode: 'speaker' | 'headphone';
+    onOutputModeChange: (mode: 'speaker' | 'headphone') => void;
     mediaStream: MediaStream | null;
     micError: string | null;
     currentLevel: number;
@@ -154,13 +154,13 @@ export const MetronomeSettings: React.FC<MetronomeSettingsProps> = ({
                             {t('speakerMode')}
                         </button>
                         <button
-                            onClick={() => onOutputModeChange('bluetooth')}
+                            onClick={() => onOutputModeChange('headphone')}
                             style={{
                                 flex: 1,
                                 padding: '8px',
                                 border: 'none',
-                                background: outputMode === 'bluetooth' ? 'var(--color-primary)' : 'transparent',
-                                color: outputMode === 'bluetooth' ? '#fff' : 'var(--color-text-dim)',
+                                background: outputMode === 'headphone' ? 'var(--color-primary)' : 'transparent',
+                                color: outputMode === 'headphone' ? '#fff' : 'var(--color-text-dim)',
                                 borderRadius: 'var(--radius-sm)',
                                 cursor: 'pointer',
                                 transition: 'all 0.2s',

@@ -188,7 +188,7 @@ export const Metronome: React.FC = () => {
     });
 
     // Mic Device Selection
-    const [selectedDeviceId, setSelectedDeviceId] = useState<string | undefined>(() => {
+    const [selectedDeviceId] = useState<string | undefined>(() => {
         return localStorage.getItem('selectedDeviceId') || undefined;
     });
 
@@ -234,10 +234,7 @@ export const Metronome: React.FC = () => {
         currentStep, lastBeatTime, isCountIn,
         setSubdivision, setGapClick, setPattern,
         audioContext,
-        audioContextState,
-        initializeAudio,
-        resetAudio,
-        resumeAudio
+        initializeAudio
     } = useMetronome({ audioLatency });
 
     // Media Session API Integration

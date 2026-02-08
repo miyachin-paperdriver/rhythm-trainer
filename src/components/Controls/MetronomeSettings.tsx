@@ -1,6 +1,6 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { DeviceSelector } from './DeviceSelector';
+import { RippleButton } from './RippleButton';
 import { version } from '../../../package.json';
 
 interface MetronomeSettingsProps {
@@ -28,13 +28,6 @@ interface MetronomeSettingsProps {
     isMicCalibrating: boolean;
     outputMode: 'speaker' | 'bluetooth';
     onOutputModeChange: (mode: 'speaker' | 'bluetooth') => void;
-    onResetAudio: () => void;
-    onResumeAudio: () => void;
-    audioContextState: AudioContextState | undefined;
-    isMicEnabled: boolean;
-    onToggleMic: () => void;
-    selectedDeviceId: string | undefined;
-    onDeviceChange: (id: string) => void;
     mediaStream: MediaStream | null;
     micError: string | null;
 }
@@ -56,13 +49,6 @@ export const MetronomeSettings: React.FC<MetronomeSettingsProps> = ({
     isMicCalibrating,
     outputMode,
     onOutputModeChange,
-    onResetAudio,
-    onResumeAudio,
-    audioContextState,
-    isMicEnabled,
-    onToggleMic,
-    selectedDeviceId,
-    onDeviceChange,
     mediaStream,
     micError
 }) => {
@@ -302,100 +288,72 @@ export const MetronomeSettings: React.FC<MetronomeSettingsProps> = ({
                     {isCalibrating && <div style={{ fontSize: '0.7rem', color: 'var(--color-accent)', marginTop: '4px' }}>{t('settings.calibrating_msg')}</div>}
                 </div>
 
-                {/* Microphone Settings */}
-                <div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                        <label style={{ display: 'flex', alignItems: 'center', fontSize: '0.85rem', color: 'var(--color-text-dim)' }}>
+                {/* Mic Settings (Gain/Threshold) always visible now since mic is always on */}
+                <div style={{ marginBottom: '1.5rem', borderTop: '1px solid var(--color-border)', paddingTop: '1rem' }}>
+                    <div style={{ marginBottom: '1rem' }}>
+                        <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem', color: 'var(--color-text)' }}>
                             {t('settings.mic_settings')}
-                            {outputMode === 'speaker' ? (
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginLeft: '6px', opacity: 0.8 }}>
-                                    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
-                                    <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
-                                </svg>
-                            ) : (
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginLeft: '6px', opacity: 0.8 }}>
-                                    <path d="M3 18v-6a9 9 0 0 1 18 0v6"></path>
-                                    <path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"></path>
-                                </svg>
-                            )}
-                        </label>
+                        </h3>
+                        <div style={{ fontSize: '0.7rem', color: 'var(--color-text-dim)', marginBottom: '1rem' }}>
+                            {/* iOS Tip */}
+                            {t('settings.ios_mic_tip')}
+                        </div>
+                    </div>
 
-                        <DeviceSelector
-                            selectedDeviceId={selectedDeviceId}
-                            onDeviceChange={onDeviceChange}
-                            disabled={!isMicEnabled}
+                    {/* Gain Control */}
+                    <div style={{ marginBottom: '1rem' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+                            <label style={{ fontSize: '0.8rem', color: 'var(--color-text)' }}>{t('settings.gain')}</label>
+                            <span style={{ fontSize: '0.8rem', fontFamily: 'monospace', color: 'var(--color-primary)' }}>{micGain.toFixed(1)}</span>
+                        </div>
+                        <input
+                            type="range"
+                            min="0"
+                            max="10"
+                            step="0.1"
+                            value={micGain}
+                            onChange={(e) => onMicGainChange(parseFloat(e.target.value))}
+                            style={{ width: '100%' }}
                         />
+                    </div>
 
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
-                            <label style={{ fontSize: '0.8rem', color: 'var(--color-text-dim)', flex: 1 }}>{t('settings.mic_enabled')}</label>
-                            <button
-                                onClick={onToggleMic}
-                                style={{
-                                    background: isMicEnabled ? 'var(--color-primary)' : 'var(--color-surface)',
-                                    border: '1px solid var(--color-border)',
-                                    color: isMicEnabled ? '#fff' : 'var(--color-text-dim)',
-                                    borderRadius: '12px',
-                                    padding: '2px 8px',
-                                    fontSize: '0.7rem',
-                                    cursor: 'pointer'
-                                }}
-                            >
-                                {isMicEnabled ? 'ON' : 'OFF'}
-                            </button>
+                    {/* Threshold Control */}
+                    <div style={{ marginBottom: '1rem' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+                            <label style={{ fontSize: '0.8rem', color: 'var(--color-text)' }}>{t('settings.sensitivity')}</label>
+                            <span style={{ fontSize: '0.8rem', fontFamily: 'monospace', color: 'var(--color-primary)' }}>{micThreshold.toFixed(2)}</span>
                         </div>
-                        {outputMode === 'bluetooth' && isMicEnabled && (
-                            <div style={{ fontSize: '0.7rem', color: 'var(--color-accent)', marginBottom: '0.5rem' }}>
-                                {t('settings.bluetooth_mic_warning')}
-                            </div>
-                        )}
-                        <button
-                            onClick={onRunMicCalibration}
-                            disabled={isMicCalibrating}
-                            style={{
-                                fontSize: '0.85rem',
-                                padding: '6px 16px',
-                                background: isMicCalibrating ? 'gray' : 'var(--color-primary)',
-                                color: '#fff',
-                                fontWeight: 'bold',
-                                border: 'none',
-                                borderRadius: '6px',
-                                cursor: isMicCalibrating ? 'wait' : 'pointer',
-                                boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
-                            }}
-                        >
-                            {t('settings.auto_set')}
-                        </button>
-                    </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', padding: '0 4px' }}>
-                        <div>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: 'var(--color-text-dim)', marginBottom: '4px' }}>
-                                <span>{t('settings.gain')}</span>
-                                <span>{micGain.toFixed(1)}x</span>
-                            </div>
-                            <input
-                                type="range"
-                                min="1.0" max="10.0" step="0.1"
-                                value={micGain}
-                                onChange={e => onMicGainChange(parseFloat(e.target.value))}
-                                style={{ width: '100%', boxSizing: 'border-box', accentColor: 'var(--color-primary)', cursor: 'pointer' }}
-                            />
-                        </div>
-                        <div>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: 'var(--color-text-dim)', marginBottom: '4px' }}>
-                                <span>{t('settings.sensitivity')} (Threshold: {micThreshold.toFixed(2)})</span>
-                            </div>
-                            <input
-                                type="range"
-                                min="0.01" max="0.5" step="0.01"
-                                value={micThreshold}
-                                onChange={e => onMicThresholdChange(parseFloat(e.target.value))}
-                                style={{ width: '100%', boxSizing: 'border-box', accentColor: 'var(--color-primary)', cursor: 'pointer' }}
-                            />
-                            <div style={{ fontSize: '0.85rem', color: '#888', marginTop: '2px' }}>
-                                {t('settings.lower_is_more_sensitive')}
-                            </div>
+                        <input
+                            type="range"
+                            min="0.01"
+                            max="0.5"
+                            step="0.01"
+                            value={micThreshold}
+                            onChange={(e) => onMicThresholdChange(parseFloat(e.target.value))}
+                            style={{ width: '100%' }}
+                        />
+                        <div style={{ fontSize: '0.7rem', color: 'var(--color-text-dim)', marginTop: '0.2rem' }}>
+                            {t('settings.lower_is_more_sensitive')}
                         </div>
                     </div>
+
+                    {/* Calibration Button */}
+                    <button
+                        onClick={onRunMicCalibration}
+                        disabled={isMicCalibrating}
+                        style={{
+                            width: '100%',
+                            padding: '12px',
+                            background: isMicCalibrating ? 'var(--color-surface-active)' : 'transparent',
+                            border: '1px solid var(--color-primary)',
+                            borderRadius: '8px',
+                            color: 'var(--color-primary)',
+                            fontSize: '0.9rem',
+                            opacity: isMicCalibrating ? 0.7 : 1
+                        }}
+                    >
+                        {isMicCalibrating ? t('settings.running') : t('settings.auto_set')}
+                    </button>
                 </div>
 
                 {/* Theme */}

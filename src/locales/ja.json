@@ -24,6 +24,7 @@
         "effects_on": "オン ✨",
         "effects_off": "オフ",
         "bluetooth_mic_warning": "⚠️ BluetoothでマイクをONにすると、音質が低下(通話モード)する場合があります。",
+        "ios_mic_tip": "💡 iPhoneの場合、ヘッドセットマイクを回避するには「設定 > サウンドと触覚」から入力設定をご確認ください。",
         "debug_show": "デバッグ情報を表示",
         "debug_hide": "デバッグ情報を隠す",
         "debug_active_stream": "アクティブなストリーム設定",

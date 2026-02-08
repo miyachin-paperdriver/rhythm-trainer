@@ -24,6 +24,7 @@
         "effects_on": "On ✨",
         "effects_off": "Off",
         "bluetooth_mic_warning": "⚠️ Enabling mic with Bluetooth may degrade audio quality (Call Mode).",
+        "ios_mic_tip": "💡 For iPhone: check 'Settings > Sounds & Haptics' to avoid using headset mic if desired.",
         "debug_show": "Show Debug Info",
         "debug_hide": "Hide Debug Info",
         "debug_active_stream": "Active Stream Settings",

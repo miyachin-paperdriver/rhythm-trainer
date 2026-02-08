@@ -91,15 +91,21 @@ export const Metronome: React.FC = () => {
     const [gapEnabled, setGapEnabled] = useState(false);
     const [playBars, setPlayBars] = useState(4);
     const [muteBars, setMuteBars] = useState(4);
+    const [tapTempo, setTapTempo] = useState<number[]>([]);
 
     // Output Mode State
-    const [outputMode, setOutputMode] = useState<'speaker' | 'bluetooth'>(() => {
-        return (localStorage.getItem('outputMode') as 'speaker' | 'bluetooth') || 'speaker';
+    const [outputMode, setOutputMode] = useState<'speaker' | 'headphone'>(() => {
+        const saved = localStorage.getItem('rhythm-trainer-output-mode');
+        return (saved === 'speaker' || saved === 'headphone') ? saved : 'speaker';
     });
 
+    // Load/Save Settings
     useEffect(() => {
-        localStorage.setItem('outputMode', outputMode);
+        localStorage.setItem('rhythm-trainer-output-mode', outputMode);
     }, [outputMode]);
+
+    // Audio Context State
+    const [audioContextState, setAudioContextState] = useState<'suspended' | 'running' | 'closed'>('suspended');
 
     // Latency State (Independent)
     const [audioLatencySpeaker, setAudioLatencySpeaker] = useState(() => Number(localStorage.getItem('audioLatency_speaker') || 0));
@@ -2159,13 +2165,6 @@ export const Metronome: React.FC = () => {
                             isMicCalibrating={micCalibState.active}
                             outputMode={outputMode}
                             onOutputModeChange={setOutputMode}
-                            onResetAudio={resetAudio}
-                            audioContextState={audioContextState}
-                            onResumeAudio={resumeAudio}
-                            isMicEnabled={isMicEnabled}
-                            onToggleMic={() => setIsMicEnabled(prev => !prev)}
-                            selectedDeviceId={selectedDeviceId}
-                            onDeviceChange={setSelectedDeviceId}
                             mediaStream={mediaStream}
                             micError={micError}
                         />

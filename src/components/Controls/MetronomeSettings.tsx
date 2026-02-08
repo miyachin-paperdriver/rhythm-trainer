@@ -1,5 +1,6 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
+import { DeviceSelector } from './DeviceSelector';
 
 import { version } from '../../../package.json';
 
@@ -31,6 +32,10 @@ interface MetronomeSettingsProps {
     mediaStream: MediaStream | null;
     micError: string | null;
     currentLevel: number;
+
+    // Device Selection
+    selectedDeviceId: string | undefined;
+    onDeviceChange: (deviceId: string) => void;
 }
 
 export const MetronomeSettings: React.FC<MetronomeSettingsProps> = ({
@@ -52,7 +57,9 @@ export const MetronomeSettings: React.FC<MetronomeSettingsProps> = ({
     onOutputModeChange,
     mediaStream,
     micError,
-    currentLevel
+    currentLevel,
+    selectedDeviceId,
+    onDeviceChange
 }) => {
     const { t, i18n } = useTranslation();
     const [debugMode, setDebugMode] = React.useState(false);
@@ -245,6 +252,13 @@ export const MetronomeSettings: React.FC<MetronomeSettingsProps> = ({
                     <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem', color: 'var(--color-text)' }}>
                         {t('settings.mic_settings')}
                     </h3>
+
+                    {/* Device Selector */}
+                    <DeviceSelector
+                        selectedDeviceId={selectedDeviceId}
+                        onDeviceChange={onDeviceChange}
+                    />
+
                     {/* Gain Control */}
                     <div style={{ marginBottom: '1rem' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>

@@ -178,7 +178,7 @@ export const Metronome: React.FC = () => {
     });
 
     // Mic Device Selection
-    const [selectedDeviceId] = useState<string | undefined>(() => {
+    const [selectedDeviceId, setSelectedDeviceId] = useState<string | undefined>(() => {
         return localStorage.getItem('selectedDeviceId') || undefined;
     });
 
@@ -2155,6 +2155,8 @@ export const Metronome: React.FC = () => {
                             mediaStream={mediaStream}
                             micError={micError}
                             currentLevel={currentLevel}
+                            selectedDeviceId={selectedDeviceId}
+                            onDeviceChange={setSelectedDeviceId}
                         />
                     </div>
                 )

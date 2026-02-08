@@ -4,33 +4,37 @@ import { useTranslation } from 'react-i18next';
 interface DeviceSelectorProps {
     selectedDeviceId: string | undefined;
     onDeviceChange: (deviceId: string) => void;
-    disabled?: boolean;
 }
 
-export const DeviceSelector: React.FC<DeviceSelectorProps> = ({
-    selectedDeviceId,
-    onDeviceChange,
-    disabled = false
-}) => {
+export const DeviceSelector: React.FC<DeviceSelectorProps> = ({ selectedDeviceId, onDeviceChange }) => {
     const { t } = useTranslation();
     const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
+    const [permissionGranted, setPermissionGranted] = useState(false);
 
     useEffect(() => {
         const getDevices = async () => {
             try {
-                // Ensure permission is granted first to get labels
-                // (Usually permission is already granted by the time this component is shown)
-                const allDevices = await navigator.mediaDevices.enumerateDevices();
-                const audioInputs = allDevices.filter(device => device.kind === 'audioinput');
+                // We need permission to get labels
+                // If not already granted, this might return empty labels or fail
+                // We assume parent handles permission via startAnalysis usually, 
+                // but checking devices might require a provisional permission request?
+                // For now, just enumerate.
+                const devs = await navigator.mediaDevices.enumerateDevices();
+                const audioInputs = devs.filter(d => d.kind === 'audioinput');
                 setDevices(audioInputs);
+
+                // Check if we have labels. If not, we might not have permission yet.
+                const hasLabels = audioInputs.some(d => d.label.length > 0);
+                setPermissionGranted(hasLabels);
+
             } catch (e) {
-                console.error('Error enumerating devices:', e);
+                console.error("Error enumerating devices:", e);
             }
         };
 
         getDevices();
 
-        // Listen for changes (e.g. plugging in headphones)
+        // Listen for changes (plugging in headphones etc.)
         navigator.mediaDevices.addEventListener('devicechange', getDevices);
         return () => {
             navigator.mediaDevices.removeEventListener('devicechange', getDevices);
@@ -40,35 +44,31 @@ export const DeviceSelector: React.FC<DeviceSelectorProps> = ({
     if (devices.length === 0) return null;
 
     return (
-        <div style={{ marginBottom: '1rem' }}>
-            <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--color-text-dim)', marginBottom: '0.3rem' }}>
-                {t('settings.input_device')}
+        <div style={{ marginBottom: '1rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            <label style={{ fontSize: '0.9rem', color: 'var(--color-text)', display: 'flex', justifyContent: 'space-between' }}>
+                {t('settings.input_device') || "Input Device"}
+                {!permissionGranted && <span style={{ fontSize: '0.7em', color: 'orange' }}>(Need Mic Permission)</span>}
             </label>
             <select
                 value={selectedDeviceId || ''}
                 onChange={(e) => onDeviceChange(e.target.value)}
-                disabled={disabled}
                 style={{
-                    width: '100%',
                     padding: '8px',
-                    borderRadius: '8px',
+                    borderRadius: 'var(--radius-md)',
                     border: '1px solid var(--color-border)',
                     background: 'var(--color-surface)',
                     color: 'var(--color-text)',
-                    fontSize: '0.9rem'
+                    fontSize: '0.9rem',
+                    width: '100%'
                 }}
             >
-                {devices.map(device => (
+                <option value="">Default</option>
+                {devices.map((device, index) => (
                     <option key={device.deviceId} value={device.deviceId}>
-                        {device.label || `Microphone ${devices.indexOf(device) + 1}`}
+                        {device.label || `Microphone ${index + 1}`}
                     </option>
                 ))}
             </select>
-            {devices.length > 0 && (
-                <div style={{ fontSize: '0.7rem', color: 'var(--color-text-dim)', marginTop: '0.2rem' }}>
-                    {t('settings.input_device_desc')}
-                </div>
-            )}
         </div>
     );
 };

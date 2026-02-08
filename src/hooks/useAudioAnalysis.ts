@@ -16,8 +16,47 @@ export const useAudioAnalysis = ({ audioContext, gain = 5.0, threshold = 0.1, is
     const [onsets, setOnsets] = useState<number[]>([]);
     const [error, setError] = useState<string | null>(null);
 
+    // Define cleanup first
+    const stopAnalysis = useCallback(() => {
+        analyzerRef.current?.stop();
+        setIsMicReady(false);
+    }, []);
+
+    const clearOnsets = useCallback(() => {
+        setOnsets([]);
+        setError(null);
+    }, []);
+
+    const startAnalysis = useCallback(async (overrideDeviceId?: string) => {
+        if (!audioContext || audioContext.state === 'closed') return;
+
+        // Always create new instance on start to ensure fresh stream
+        if (analyzerRef.current) {
+            analyzerRef.current.stop();
+        }
+
+        analyzerRef.current = new AudioAnalyzer(audioContext);
+        setAnalyzerInstance(analyzerRef.current);
+
+        // Apply settings
+        analyzerRef.current.setGain(gain);
+        analyzerRef.current.setThreshold(threshold);
+        analyzerRef.current.onOnset = (time) => {
+            setOnsets(prev => [...prev, time]);
+        };
+
+        try {
+            await analyzerRef.current.start(undefined, overrideDeviceId || deviceId);
+            setIsMicReady(true);
+            setError(null);
+        } catch (e) {
+            console.error(e);
+            setError('Could not access microphone');
+        }
+    }, [audioContext, gain, threshold, deviceId]);
+
+    // Cleanup Effect
     useEffect(() => {
-        // Cleanup function for previous instance
         return () => {
             if (analyzerRef.current) {
                 analyzerRef.current.stop();
@@ -81,44 +120,6 @@ export const useAudioAnalysis = ({ audioContext, gain = 5.0, threshold = 0.1, is
             analyzerRef.current.setThreshold(threshold);
         }
     }, [threshold]);
-
-    const startAnalysis = useCallback(async () => {
-        if (!audioContext || audioContext.state === 'closed') return;
-
-        // Always create new instance on start to ensure fresh stream
-        if (analyzerRef.current) {
-            analyzerRef.current.stop();
-        }
-
-        analyzerRef.current = new AudioAnalyzer(audioContext);
-        setAnalyzerInstance(analyzerRef.current);
-
-        // Apply settings
-        analyzerRef.current.setGain(gain);
-        analyzerRef.current.setThreshold(threshold);
-        analyzerRef.current.onOnset = (time) => {
-            setOnsets(prev => [...prev, time]);
-        };
-
-        try {
-            await analyzerRef.current.start(undefined, deviceId);
-            setIsMicReady(true);
-            setError(null);
-        } catch (e) {
-            console.error(e);
-            setError('Could not access microphone');
-        }
-    }, []);
-
-    const stopAnalysis = useCallback(() => {
-        analyzerRef.current?.stop();
-        setIsMicReady(false);
-    }, []);
-
-    const clearOnsets = useCallback(() => {
-        setOnsets([]);
-        setError(null);
-    }, []);
 
     // Auto start/stop based on playback or manual? 
     // Probably manual "Enable Mic" is safer first, then auto with playback.

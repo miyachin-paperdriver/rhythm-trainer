@@ -157,7 +157,218 @@ export const Metronome: React.FC = () => {
     // Auto Calibration State
     const [isCalibrating, setIsCalibrating] = useState(false);
 
-    // Mic is ALWAYS enabled (user setting) but we only Activate string whe needed
+    // Mic is ALWAYS enabled now per user request
+    // const isMicEnabled = true; // Removed, using isMicActive derived state
+
+    useEffect(() => {
+        // Ensure legacy state doesn't interfere if we ever revert to using localStorage
+        localStorage.setItem('isMicEnabled', 'true');
+    }, []);
+
+    // Debug State
+    const [debugLog, setDebugLog] = useState<string[]>([]);
+    const log = (msg: string) => {
+        console.log(msg);
+        setDebugLog(prev => [...prev.slice(-4), msg]); // Keep last 5
+    };
+
+    // Theme State
+    const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+        return (localStorage.getItem('theme') as 'light' | 'dark') || 'light';
+    });
+
+    // Mic Device Selection
+    const [selectedDeviceId] = useState<string | undefined>(() => {
+        return localStorage.getItem('selectedDeviceId') || undefined;
+    });
+
+    useEffect(() => {
+        if (selectedDeviceId) {
+            localStorage.setItem('selectedDeviceId', selectedDeviceId);
+        }
+    }, [selectedDeviceId]);
+
+    // Visual Effects State
+    const [visualEffectsEnabled, setVisualEffectsEnabled] = useState(() => {
+        const stored = localStorage.getItem('visualEffectsEnabled');
+        return stored !== null ? stored === 'true' : true; // Default: enabled
+    });
+
+    useEffect(() => {
+        document.documentElement.setAttribute('data-theme', theme);
+        localStorage.setItem('theme', theme);
+    }, [theme]);
+
+    useEffect(() => {
+        localStorage.setItem('visualEffectsEnabled', String(visualEffectsEnabled));
+    }, [visualEffectsEnabled]);
+
+    // Beat History for Visualizer
+    const [beatHistory, setBeatHistory] = useState<number[]>([]);
+
+    useEffect(() => {
+        localStorage.setItem('audioLatency', audioLatency.toString());
+    }, [audioLatency]);
+
+    useEffect(() => {
+        localStorage.setItem('micGain', micGain.toString());
+    }, [micGain]);
+
+    useEffect(() => {
+        localStorage.setItem('micThreshold', micThreshold.toString());
+    }, [micThreshold]);
+
+    // ---- Hooks ----
+    const {
+        bpm, isPlaying, start, stop, changeBpm,
+        currentStep, lastBeatTime, isCountIn,
+        setSubdivision, setGapClick, setPattern,
+        audioContext,
+        initializeAudio
+    } = useMetronome({ audioLatency });
+
+    // Media Session API Integration
+    useEffect(() => {
+        if ('mediaSession' in navigator) {
+            navigator.mediaSession.setActionHandler('play', () => {
+                console.log('[MediaSession] Play triggered');
+                start();
+            });
+            navigator.mediaSession.setActionHandler('pause', () => {
+                console.log('[MediaSession] Pause triggered');
+                stop();
+            });
+
+            // Set initial metadata
+            navigator.mediaSession.metadata = new MediaMetadata({
+                title: 'Rhythm Trainer',
+                artist: 'Training Session'
+            });
+        }
+        return () => {
+            if ('mediaSession' in navigator) {
+                navigator.mediaSession.setActionHandler('play', null);
+                navigator.mediaSession.setActionHandler('pause', null);
+            }
+        };
+    }, [start, stop]);
+
+    useEffect(() => {
+        if ('mediaSession' in navigator) {
+            navigator.mediaSession.playbackState = isPlaying ? 'playing' : 'paused';
+        }
+    }, [isPlaying]);
+
+    // timerDuration is in MINUTES, timerRemaining is in SECONDS
+    const [timerDuration, setTimerDuration] = useState<number | null>(null); // minutes
+    const [timerRemaining, setTimerRemaining] = useState<number>(0); // seconds
+    const [stopRequestPending, setStopRequestPending] = useState(false);
+    const [showTimerDialog, setShowTimerDialog] = useState(false);
+    const [completionMessage, setCompletionMessage] = useState<string | null>(null);
+    const [showCompletionOverlay, setShowCompletionOverlay] = useState(false);
+    const [customTimerInput, setCustomTimerInput] = useState("10");
+
+    // Initialize/Reset remaining time when duration changes
+    useEffect(() => {
+        if (timerDuration !== null) {
+            setTimerRemaining(timerDuration * 60); // Convert minutes to seconds
+            setStopRequestPending(false);
+        } else {
+            setTimerRemaining(0);
+            setStopRequestPending(false);
+        }
+    }, [timerDuration]);
+
+    // Countdown Effect
+    useEffect(() => {
+        let interval: any;
+        if (isPlaying && timerDuration !== null && timerRemaining > 0 && !isCountIn) {
+            interval = setInterval(() => {
+                setTimerRemaining(prev => {
+                    const next = prev - 1;
+                    if (next <= 0) {
+                        setStopRequestPending(true);
+                        return 0;
+                    }
+                    return next;
+                });
+            }, 1000);
+        }
+        return () => clearInterval(interval);
+    }, [isPlaying, timerDuration, timerRemaining, isCountIn]);
+
+    // Loop Stop Logic - Stop at the start of the next loop (step 0) after timer expires
+    const prevStepRef = React.useRef(currentStep);
+    useEffect(() => {
+        if (isPlaying && stopRequestPending) {
+            // Detect loop boundary: when currentStep goes from a higher value back to 0
+            const wasHigherStep = prevStepRef.current > 0;
+            const isNowAtZero = currentStep === 0;
+
+            if (wasHigherStep && isNowAtZero) {
+                stop();
+                handleTimerCompletion();
+            }
+        }
+        prevStepRef.current = currentStep;
+    }, [currentStep, isPlaying, stopRequestPending, stop]);
+
+    // Fallback: if stopRequestPending and timer has been at 0 for 5 seconds, force stop
+    useEffect(() => {
+        let fallbackTimer: any;
+        if (isPlaying && stopRequestPending && timerRemaining <= 0) {
+            fallbackTimer = setTimeout(() => {
+                if (isPlaying && stopRequestPending) {
+                    stop();
+                    handleTimerCompletion();
+                }
+            }, 5000);
+        }
+        return () => clearTimeout(fallbackTimer);
+    }, [isPlaying, stopRequestPending, timerRemaining, stop]);
+
+    const handleTimerCompletion = () => {
+        // Prepare completion message
+        // We need to wait a tick for stats to maybe update? 
+        // Or just use what we have. Rank is calculated in real-time in SessionManager usually?
+        // Actually lastSessionStats is from *previous* session until we update.
+        // But we just called stop().
+
+        // Let's create a temporary effect or just trigger visualization now.
+        setShowCompletionOverlay(true);
+        setStopRequestPending(false);
+        setTimerRemaining(0);
+
+        // Voice Feedback
+        if ('speechSynthesis' in window) {
+            // Wait a moment for visual confirmation, then speak
+            setTimeout(() => {
+                const utterance = new SpeechSynthesisUtterance(t('sessionFinished'));
+                // Try to pick a Japanese voice if available and appropriate
+                const voices = window.speechSynthesis.getVoices();
+                if (i18n.language === 'ja') {
+                    const jaVoice = voices.find(v => v.lang.startsWith('ja'));
+                    if (jaVoice) utterance.voice = jaVoice;
+                }
+
+                window.speechSynthesis.speak(utterance);
+            }, 1000);
+        }
+    };
+
+
+
+    // Effect: Set pattern on engine when selection changes
+    // Now all patterns (presets and custom) have measures, so we always set the pattern
+    useEffect(() => {
+        if (expandedMeasures) {
+            setPattern(expandedMeasures);
+        } else {
+            setPattern(null);
+        }
+    }, [expandedMeasures, setPattern]);
+
+    // Mic is ALWAYS enabled (user setting) but we only Activate stream when needed
     // to prevent Android "Call Mode" lock.
     const isMicActive = isPlaying || isCalibrating || activeTab === 'settings';
 

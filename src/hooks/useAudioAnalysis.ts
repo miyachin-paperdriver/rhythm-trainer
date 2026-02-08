@@ -47,6 +47,14 @@ export const useAudioAnalysis = ({ audioContext, gain = 5.0, threshold = 0.1, is
 
         try {
             await analyzerRef.current.start(undefined, overrideDeviceId || deviceId);
+
+            // Android Fix: Force resume context after stream acquisition
+            // The stream acquisition can sometimes suspend the context or switch audio focus
+            if (audioContext.state === 'suspended') {
+                console.log('[Hook] Forcing AudioContext resume after mic start');
+                await audioContext.resume();
+            }
+
             setIsMicReady(true);
             setError(null);
         } catch (e) {

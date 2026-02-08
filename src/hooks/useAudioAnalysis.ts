@@ -104,35 +104,34 @@ export const useAudioAnalysis = ({ audioContext, gain = 5.0, threshold = 0.1, is
     // Probably manual "Enable Mic" is safer first, then auto with playback.
     // For now we expose start/stop manually.
 
+    // Poll for current level for UI
+    const [currentLevel, setCurrentLevel] = useState(0);
+    useEffect(() => {
+        let animationFrameId: number;
+
+        const updateLevel = () => {
+            if (analyzerRef.current) {
+                setCurrentLevel(analyzerRef.current.currentLevel);
+            }
+            animationFrameId = requestAnimationFrame(updateLevel);
+        };
+
+        updateLevel();
+
+        return () => {
+            cancelAnimationFrame(animationFrameId);
+        };
+    }, []);
+
     return {
-        // Poll for current level for UI
-        const [currentLevel, setCurrentLevel] = useState(0);
-        useEffect(() => {
-    let animationFrameId: number;
-
-    const updateLevel = () => {
-        if (analyzerRef.current) {
-            setCurrentLevel(analyzerRef.current.currentLevel);
-        }
-        animationFrameId = requestAnimationFrame(updateLevel);
+        isMicReady,
+        startAnalysis,
+        stopAnalysis,
+        clearOnsets,
+        onsets,
+        error,
+        mediaStream: analyzerRef.current?.mediaStream || null,
+        analyzer: analyzerInstance,
+        currentLevel // Expose level
     };
-
-    updateLevel();
-
-    return () => {
-        cancelAnimationFrame(animationFrameId);
-    };
-}, []);
-
-return {
-    isMicReady,
-    startAnalysis,
-    stopAnalysis,
-    clearOnsets,
-    onsets,
-    error,
-    mediaStream: analyzerRef.current?.mediaStream || null,
-    analyzer: analyzerInstance,
-    currentLevel // Expose level
-};
 };

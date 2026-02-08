@@ -50,7 +50,6 @@ export const MetronomeSettings: React.FC<MetronomeSettingsProps> = ({
     isMicCalibrating,
     outputMode,
     onOutputModeChange,
-    onOutputModeChange,
     mediaStream,
     micError,
     currentLevel

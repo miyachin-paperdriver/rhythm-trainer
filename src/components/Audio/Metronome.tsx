@@ -91,7 +91,7 @@ export const Metronome: React.FC = () => {
     const [gapEnabled, setGapEnabled] = useState(false);
     const [playBars, setPlayBars] = useState(4);
     const [muteBars, setMuteBars] = useState(4);
-    const [tapTempo, setTapTempo] = useState<number[]>([]);
+    // const [tapTempo, setTapTempo] = useState<number[]>([]); // Removed unused
 
     // Output Mode State
     const [outputMode, setOutputMode] = useState<'speaker' | 'headphone'>(() => {
@@ -105,7 +105,7 @@ export const Metronome: React.FC = () => {
     }, [outputMode]);
 
     // Audio Context State
-    const [audioContextState, setAudioContextState] = useState<'suspended' | 'running' | 'closed'>('suspended');
+    // const [audioContextState, setAudioContextState] = useState<'suspended' | 'running' | 'closed'>('suspended'); // Removed shadowing
 
     // Latency State (Independent)
     const [audioLatencySpeaker, setAudioLatencySpeaker] = useState(() => Number(localStorage.getItem('audioLatency_speaker') || 0));
@@ -169,8 +169,8 @@ export const Metronome: React.FC = () => {
 
     // Auto-disable mic when switching to Bluetooth mode to prevent "Call Mode"
     useEffect(() => {
-        if (outputMode === 'bluetooth' && isMicEnabled) {
-            console.log('[Auto] Disabling Mic for Bluetooth Mode');
+        if (outputMode === 'headphone' && isMicEnabled) {
+            console.log('[Auto] Disabling Mic for Headphone Mode');
             setIsMicEnabled(false);
         }
     }, [outputMode]);

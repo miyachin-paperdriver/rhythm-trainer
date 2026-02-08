@@ -377,8 +377,10 @@ export const Metronome: React.FC = () => {
         error: micError,
 
         analyzer,
+        analyzer,
         mediaStream,
-        clearOnsets
+        clearOnsets,
+        currentLevel
     } = useAudioAnalysis({
         audioContext,
         gain: micGain,

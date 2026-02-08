@@ -381,6 +381,7 @@ export const Metronome: React.FC = () => {
         startAnalysis,
         stopAnalysis,
         onsets: detectedOnsets,
+        error: micError,
 
         analyzer,
         mediaStream,
@@ -2166,6 +2167,7 @@ export const Metronome: React.FC = () => {
                             selectedDeviceId={selectedDeviceId}
                             onDeviceChange={setSelectedDeviceId}
                             mediaStream={mediaStream}
+                            micError={micError}
                         />
                     </div>
                 )

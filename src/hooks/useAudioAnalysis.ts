@@ -56,6 +56,12 @@ export const useAudioAnalysis = ({ audioContext, gain = 5.0, threshold = 0.1, is
                 console.log('Onset detected at', time);
                 setOnsets(prev => [...prev, time]);
             };
+
+            // If we have a device ID or are just starting, we might want to auto-start? 
+            // Current logic waits for startAnalysis() call. 
+            // But if we change deviceId while running, we should restart.
+            // However, the hook structure rebuilds the *analyzer instance* on deviceId change.
+            // We need to verify if the new analyzer is started.
         }
     }, [audioContext, isEnabled, deviceId]); // Re-run when context, enabled state, or device changes
 

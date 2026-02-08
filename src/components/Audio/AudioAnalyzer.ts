@@ -31,6 +31,11 @@ export class AudioAnalyzer {
         if (this.isRunning) return;
 
         try {
+            // Ensure any previous stream is stopped
+            if (this.mediaStream) {
+                this.mediaStream.getTracks().forEach(track => track.stop());
+            }
+
             if (stream) {
                 this.mediaStream = stream;
             } else {

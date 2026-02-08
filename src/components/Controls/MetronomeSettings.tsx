@@ -36,6 +36,7 @@ interface MetronomeSettingsProps {
     selectedDeviceId: string | undefined;
     onDeviceChange: (id: string) => void;
     mediaStream: MediaStream | null;
+    micError: string | null;
 }
 
 export const MetronomeSettings: React.FC<MetronomeSettingsProps> = ({
@@ -62,7 +63,8 @@ export const MetronomeSettings: React.FC<MetronomeSettingsProps> = ({
     onToggleMic,
     selectedDeviceId,
     onDeviceChange,
-    mediaStream
+    mediaStream,
+    micError
 }) => {
     const { t, i18n } = useTranslation();
     const [debugMode, setDebugMode] = React.useState(false);
@@ -447,7 +449,7 @@ export const MetronomeSettings: React.FC<MetronomeSettingsProps> = ({
                         <div style={{ fontSize: '0.65rem', fontFamily: 'monospace', marginTop: '0.5rem', color: 'var(--color-text)' }}>
                             <div style={{ marginBottom: '0.5rem' }}>
                                 <strong>{t('settings.debug_active_stream')}:</strong>
-                                <pre style={{ background: '#000', padding: '4px', overflowX: 'auto' }}>
+                                <pre style={{ background: '#000', color: '#fff', padding: '4px', overflowX: 'auto' }}>
                                     {streamSettings ? JSON.stringify(streamSettings, null, 2) : t('settings.debug_no_stream')}
                                 </pre>
                             </div>
@@ -462,6 +464,11 @@ export const MetronomeSettings: React.FC<MetronomeSettingsProps> = ({
                                     ))}
                                 </ul>
                             </div>
+                            {micError && (
+                                <div style={{ marginTop: '0.5rem', color: 'red' }}>
+                                    <strong>Error:</strong> {micError}
+                                </div>
+                            )}
                         </div>
                     )}
                 </div>

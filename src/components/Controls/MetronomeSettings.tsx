@@ -73,7 +73,7 @@ export const MetronomeSettings: React.FC<MetronomeSettingsProps> = ({
                 setStreamSettings(null);
             }
         }
-    }, [debugMode, mediaStream, isMicEnabled]); // Refresh when mic toggles
+    }, [debugMode, mediaStream]); // Refresh when debug toggles
 
     const toggleTheme = () => {
         const next = currentTheme === 'dark' ? 'light' : 'dark';
@@ -181,59 +181,7 @@ export const MetronomeSettings: React.FC<MetronomeSettingsProps> = ({
                     </div>
                 </div>
 
-                {/* Reset Audio (Troubleshooting) */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                    <button
-                        onClick={onResetAudio}
-                        style={{
-                            padding: '8px',
-                            border: '1px solid var(--color-border)',
-                            background: 'var(--color-surface)',
-                            color: 'var(--color-text-dim)',
-                            borderRadius: 'var(--radius-md)',
-                            cursor: 'pointer',
-                            fontSize: '0.8rem',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: '6px'
-                        }}
-                    >
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <path d="M23 4v6h-6"></path>
-                            <path d="M1 20v-6h6"></path>
-                            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
-                        </svg>
-                        {t('settings.reset_audio')}
-                    </button>
-                    <div style={{ fontSize: '0.7rem', color: 'var(--color-text-dim)', textAlign: 'center' }}>
-                        {t('settings.reset_audio_desc')}
-                    </div>
-                    {audioContextState && (
-                        <div style={{ fontSize: '0.7rem', color: audioContextState === 'running' ? 'var(--color-primary)' : 'var(--color-accent)', textAlign: 'center', marginTop: '4px' }}>
-                            State: {audioContextState}
-                        </div>
-                    )}
 
-                    {audioContextState === 'suspended' && (
-                        <button
-                            onClick={onResumeAudio}
-                            style={{
-                                marginTop: '4px',
-                                padding: '6px',
-                                fontSize: '0.75rem',
-                                background: 'var(--color-accent)',
-                                color: '#fff',
-                                border: 'none',
-                                borderRadius: '4px',
-                                cursor: 'pointer',
-                                fontWeight: 'bold'
-                            }}
-                        >
-                            {t('settings.force_resume', 'Tap to Force Resume')}
-                        </button>
-                    )}
-                </div>
 
                 {/* Latency Calibration */}
                 <div>

@@ -76,8 +76,6 @@ export const useAudioAnalysis = ({ audioContext, gain = 5.0, threshold = 0.1, is
 
     // Unified Lifecycle Effect
     useEffect(() => {
-        let active = true;
-
         const manageAnalysis = async () => {
             if (isEnabled && audioContext && audioContext.state !== 'closed') {
                 if (!analyzerInstance) {
@@ -108,12 +106,16 @@ export const useAudioAnalysis = ({ audioContext, gain = 5.0, threshold = 0.1, is
         manageAnalysis();
 
         return () => {
-            active = false;
-            // logic here is tricky. 
-            // If we unmount, we stop.
-            // If dep changes, we stop?
-            // If isEnabled changes to false, manageAnalysis stops it.
-            // If audioContext changes, manageAnalysis recycles.
+            // Cleanup on unmount or dep change
+            // we rely on next effect run or component unmount cleanup (which calls stopAnalysis via clojure?)
+            // Actually, we should probably stop if unmounting?
+            // But if we are just changing deps, manageAnalysis will run again.
+            // If we unmount, we want to stop.
+            // There is a separate cleanup effect below at line 67 that handles unmount. 
+            // So we don't strictly need to do anything here for unmount specifically 
+            // IF that other effect covers it. 
+            // The other effect (lines 67-75) stops the analyzer on unmount.
+            // So we are good.
         };
     }, [isEnabled, audioContext, deviceId, startAnalysis, stopAnalysis, analyzerInstance, isMicReady]);
 

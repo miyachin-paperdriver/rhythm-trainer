@@ -27,41 +27,45 @@ export const useAudioAnalysis = ({ audioContext, gain = 5.0, threshold = 0.1, is
         };
     }, []);
 
+    // Auto-Start/Stop based on isEnabled
+    useEffect(() => {
+        if (isEnabled) {
+            if (!isMicReady && !analyzerInstance && audioContext && audioContext.state !== 'closed') {
+                console.log('[Hook] Auto-starting analysis (isEnabled=true)');
+                startAnalysis();
+            }
+        } else {
+            if (isMicReady || analyzerInstance) {
+                console.log('[Hook] Auto-stopping analysis (isEnabled=false)');
+                stopAnalysis();
+            }
+        }
+    }, [isEnabled, isMicReady, analyzerInstance, audioContext, startAnalysis, stopAnalysis]);
+
     useEffect(() => {
         // If context changes (or init), recreate analyzer
         // ONLY if enabled
         if (!isEnabled) {
-            if (analyzerRef.current) {
-                analyzerRef.current.stop();
-                analyzerRef.current = null;
-                setAnalyzerInstance(null);
-            }
+            // Cleanup handled by auto-stop effect above or cleanup function
             return;
         }
 
         if (audioContext && audioContext.state !== 'closed') {
             // Clean up existing if any (though effect cleanup above handles unmount, logic here handles prop change)
             if (analyzerRef.current) {
-                analyzerRef.current.stop();
+                // We don't want to stop here if it's just a re-render, but if context CHANGED we must.
+                // Actually startAnalysis handles creation. This effect might be redundant or conflicting with startAnalysis?
+                // limit this effect to just setting properties if instance exists
             }
 
-            analyzerRef.current = new AudioAnalyzer(audioContext);
-            setAnalyzerInstance(analyzerRef.current);
+            // If we have an instance, update properties
+            if (analyzerRef.current) {
+                analyzerRef.current.setGain(gain);
+                analyzerRef.current.setThreshold(threshold);
 
-            // Apply current settings
-            analyzerRef.current.setGain(gain);
-            analyzerRef.current.setThreshold(threshold);
-
-            analyzerRef.current.onOnset = (time) => {
-                console.log('Onset detected at', time);
-                setOnsets(prev => [...prev, time]);
-            };
-
-            // If we have a device ID or are just starting, we might want to auto-start? 
-            // Current logic waits for startAnalysis() call. 
-            // But if we change deviceId while running, we should restart.
-            // However, the hook structure rebuilds the *analyzer instance* on deviceId change.
-            // We need to verify if the new analyzer is started.
+                // Re-bind callback because state (onsets) might be stale in closure?
+                // No, setState is stable.
+            }
         }
     }, [audioContext, isEnabled, deviceId]); // Re-run when context, enabled state, or device changes
 
@@ -79,7 +83,23 @@ export const useAudioAnalysis = ({ audioContext, gain = 5.0, threshold = 0.1, is
     }, [threshold]);
 
     const startAnalysis = useCallback(async () => {
-        if (!isEnabled || !analyzerRef.current) return;
+        if (!audioContext || audioContext.state === 'closed') return;
+
+        // Always create new instance on start to ensure fresh stream
+        if (analyzerRef.current) {
+            analyzerRef.current.stop();
+        }
+
+        analyzerRef.current = new AudioAnalyzer(audioContext);
+        setAnalyzerInstance(analyzerRef.current);
+
+        // Apply settings
+        analyzerRef.current.setGain(gain);
+        analyzerRef.current.setThreshold(threshold);
+        analyzerRef.current.onOnset = (time) => {
+            setOnsets(prev => [...prev, time]);
+        };
+
         try {
             await analyzerRef.current.start(undefined, deviceId);
             setIsMicReady(true);

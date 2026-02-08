@@ -27,21 +27,26 @@ export class AudioAnalyzer {
         this.audioContext = audioContext;
     }
 
+    private isStopping: boolean = false;
+
     public async start(stream?: MediaStream, deviceId?: string) {
         if (this.isRunning) return;
+        this.isStopping = false;
 
         try {
+            console.log('[AudioAnalyzer] Starting analysis...');
+
             // Ensure any previous stream is stopped
             if (this.mediaStream) {
                 this.mediaStream.getTracks().forEach(track => track.stop());
             }
 
-            if (stream) {
-                this.mediaStream = stream;
-            } else {
+            let activeStream = stream;
+
+            if (!activeStream) {
                 const constraints: MediaStreamConstraints = {
                     audio: {
-                        echoCancellation: false,
+                        echoCancellation: false, // We want raw input usually
                         noiseSuppression: false,
                         autoGainControl: false,
                         deviceId: deviceId ? { exact: deviceId } : undefined
@@ -49,7 +54,27 @@ export class AudioAnalyzer {
                     video: false
                 };
 
-                this.mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
+                activeStream = await navigator.mediaDevices.getUserMedia(constraints);
+            }
+
+            // RACE CONDITION CHECK:
+            // If stop() was called while we were awaiting getUserMedia, abort now.
+            if (this.isStopping) {
+                console.warn('[AudioAnalyzer] Start aborted because stop() was called.');
+                if (activeStream && !stream) {
+                    // Only stop if WE created it. If passed in, caller manages it? 
+                    // Verify contract: if passed in, we take ownership? Usually yes.
+                    activeStream.getTracks().forEach(t => t.stop());
+                }
+                return;
+            }
+
+            this.mediaStream = activeStream;
+
+            // Check context state
+            if (this.audioContext.state === 'closed') {
+                console.warn('[AudioAnalyzer] Context is closed, cannot create MediaStreamSource.');
+                return;
             }
 
             this.source = this.audioContext.createMediaStreamSource(this.mediaStream);
@@ -81,10 +106,15 @@ export class AudioAnalyzer {
     }
 
     public stop() {
+        console.log('[AudioAnalyzer] Stopping analysis...');
+        this.isStopping = true; // Signal pending start to abort
         this.isRunning = false;
+
         if (this.animationFrameId) {
             cancelAnimationFrame(this.animationFrameId);
+            this.animationFrameId = null;
         }
+
         if (this.mediaStream) {
             this.mediaStream.getTracks().forEach(track => {
                 track.stop();
@@ -94,13 +124,13 @@ export class AudioAnalyzer {
         }
 
         // Disconnect nodes to avoid memory leaks
-        if (this.source) this.source.disconnect();
-        if (this.filterNode) this.filterNode.disconnect();
-        if (this.gainNode) this.gainNode.disconnect();
-
-        this.source = null;
-        this.filterNode = null;
-        this.gainNode = null;
+        try {
+            if (this.source) { this.source.disconnect(); this.source = null; }
+            if (this.filterNode) { this.filterNode.disconnect(); this.filterNode = null; }
+            if (this.gainNode) { this.gainNode.disconnect(); this.gainNode = null; }
+        } catch (e) {
+            console.warn('Error disconnecting nodes:', e);
+        }
 
         console.log('Audio analysis stopped');
     }

@@ -1129,6 +1129,17 @@ export const Metronome: React.FC = () => {
             try {
                 // 3. Request Mic Permission (Force PlayAndRecord)
                 await startAnalysis();
+
+                // [FIX] Add delay to allow Android audio routing to settle (Call Mode switch)
+                // This prevents the "silent count-in" issue caused by the mode switch glitch.
+                await new Promise(resolve => setTimeout(resolve, 500));
+
+                // [FIX] Force resume if context got suspended by the mode switch
+                if (audioContext?.state === 'suspended') {
+                    console.log('[Toggle] Resuming AudioContext after mic init');
+                    await audioContext.resume();
+                }
+
             } catch (e) {
                 console.warn("Mic failed", e);
                 // If permission denied, we still start, but warn user about Silent Switch

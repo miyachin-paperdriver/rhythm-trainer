@@ -105,13 +105,34 @@ export const useAudioAnalysis = ({ audioContext, gain = 5.0, threshold = 0.1, is
     // For now we expose start/stop manually.
 
     return {
-        isMicReady,
-        startAnalysis,
-        stopAnalysis,
-        clearOnsets,
-        onsets,
-        error,
-        mediaStream: analyzerRef.current?.mediaStream || null,
-        analyzer: analyzerInstance // Expose instance for direct level access
+        // Poll for current level for UI
+        const [currentLevel, setCurrentLevel] = useState(0);
+        useEffect(() => {
+    let animationFrameId: number;
+
+    const updateLevel = () => {
+        if (analyzerRef.current) {
+            setCurrentLevel(analyzerRef.current.currentLevel);
+        }
+        animationFrameId = requestAnimationFrame(updateLevel);
     };
+
+    updateLevel();
+
+    return () => {
+        cancelAnimationFrame(animationFrameId);
+    };
+}, []);
+
+return {
+    isMicReady,
+    startAnalysis,
+    stopAnalysis,
+    clearOnsets,
+    onsets,
+    error,
+    mediaStream: analyzerRef.current?.mediaStream || null,
+    analyzer: analyzerInstance,
+    currentLevel // Expose level
+};
 };

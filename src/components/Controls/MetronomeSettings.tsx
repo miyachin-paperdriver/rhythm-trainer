@@ -30,6 +30,7 @@ interface MetronomeSettingsProps {
     onOutputModeChange: (mode: 'speaker' | 'bluetooth') => void;
     mediaStream: MediaStream | null;
     micError: string | null;
+    currentLevel: number;
 }
 
 export const MetronomeSettings: React.FC<MetronomeSettingsProps> = ({
@@ -49,8 +50,10 @@ export const MetronomeSettings: React.FC<MetronomeSettingsProps> = ({
     isMicCalibrating,
     outputMode,
     onOutputModeChange,
+    onOutputModeChange,
     mediaStream,
-    micError
+    micError,
+    currentLevel
 }) => {
     const { t, i18n } = useTranslation();
     const [debugMode, setDebugMode] = React.useState(false);
@@ -439,6 +442,40 @@ export const MetronomeSettings: React.FC<MetronomeSettingsProps> = ({
                                     ))}
                                 </ul>
                             </div>
+
+                            <div style={{ marginTop: '0.5rem' }}>
+                                <strong style={{ color: '#0066cc' }}>Input Level:</strong> <br />
+                                <div style={{
+                                    width: '100%',
+                                    height: '10px',
+                                    background: '#ddd',
+                                    marginTop: '4px',
+                                    position: 'relative',
+                                    borderRadius: '5px',
+                                    overflow: 'hidden'
+                                }}>
+                                    <div style={{
+                                        width: `${Math.min(currentLevel * 1000, 100)}%`, // Scale sensitivity for visual
+                                        height: '100%',
+                                        background: currentLevel > micThreshold ? '#00cc00' : '#0066cc',
+                                        transition: 'width 0.1s'
+                                    }} />
+                                    {/* Threshold marker */}
+                                    <div style={{
+                                        position: 'absolute',
+                                        left: `${Math.min(micThreshold * 1000, 100)}%`,
+                                        top: 0,
+                                        bottom: 0,
+                                        width: '2px',
+                                        background: 'red',
+                                        zIndex: 10
+                                    }} />
+                                </div>
+                                <div style={{ fontSize: '0.65rem', color: '#666', marginTop: '2px' }}>
+                                    Level: {currentLevel.toFixed(4)} | Threshold: {micThreshold.toFixed(2)}
+                                </div>
+                            </div>
+
                             {micError && (
                                 <div style={{ marginTop: '0.5rem', color: '#cc0000', fontWeight: 'bold' }}>
                                     Error: {micError}

@@ -2167,6 +2167,7 @@ export const Metronome: React.FC = () => {
                             onOutputModeChange={setOutputMode}
                             mediaStream={mediaStream}
                             micError={micError}
+                            currentLevel={analyzer?.currentLevel || 0}
                         />
                     </div>
                 )

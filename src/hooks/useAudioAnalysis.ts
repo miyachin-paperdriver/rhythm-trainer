@@ -74,47 +74,48 @@ export const useAudioAnalysis = ({ audioContext, gain = 5.0, threshold = 0.1, is
         };
     }, []);
 
-    // Auto-Start/Stop based on isEnabled
+    // Unified Lifecycle Effect
     useEffect(() => {
-        if (isEnabled) {
-            if (!isMicReady && !analyzerInstance && audioContext && audioContext.state !== 'closed') {
-                console.log('[Hook] Auto-starting analysis (isEnabled=true)');
-                startAnalysis();
-            }
-        } else {
-            if (isMicReady || analyzerInstance) {
-                console.log('[Hook] Auto-stopping analysis (isEnabled=false)');
-                stopAnalysis();
-            }
-        }
-    }, [isEnabled, isMicReady, analyzerInstance, audioContext, startAnalysis, stopAnalysis]);
+        let active = true;
 
-    useEffect(() => {
-        // If context changes (or init), recreate analyzer
-        // ONLY if enabled
-        if (!isEnabled) {
-            // Cleanup handled by auto-stop effect above or cleanup function
-            return;
-        }
+        const manageAnalysis = async () => {
+            if (isEnabled && audioContext && audioContext.state !== 'closed') {
+                if (!analyzerInstance) {
+                    console.log('[Hook] Starting analysis...');
+                    await startAnalysis();
+                } else {
+                    // If already running but context changed (reference check), startAnalysis handles that internally?
+                    // startAnalysis creates NEW analyzer if one exists.
+                    // But we need to know if we SHOULD restart.
+                    // The dependencies of this effect include audioContext.
+                    // So if audioContext changes, this runs.
 
-        if (audioContext && audioContext.state !== 'closed') {
-            // Clean up existing if any (though effect cleanup above handles unmount, logic here handles prop change)
-            if (analyzerRef.current) {
-                // We don't want to stop here if it's just a re-render, but if context CHANGED we must.
-                // Actually startAnalysis handles creation. This effect might be redundant or conflicting with startAnalysis?
-                // limit this effect to just setting properties if instance exists
+                    // If we have an instance but it belongs to a CLOSED or DIFFERENT context, restart.
+                    if (analyzerInstance.audioContext !== audioContext) {
+                        console.log('[Hook] Context changed, restarting analysis...');
+                        await startAnalysis();
+                    }
+                }
+            } else {
+                // Disabled or Invalid Context
+                if (analyzerInstance || isMicReady) {
+                    console.log('[Hook] Stopping analysis (disabled or context invalid)...');
+                    stopAnalysis();
+                }
             }
+        };
 
-            // If we have an instance, update properties
-            if (analyzerRef.current) {
-                analyzerRef.current.setGain(gain);
-                analyzerRef.current.setThreshold(threshold);
+        manageAnalysis();
 
-                // Re-bind callback because state (onsets) might be stale in closure?
-                // No, setState is stable.
-            }
-        }
-    }, [audioContext, isEnabled, deviceId]); // Re-run when context, enabled state, or device changes
+        return () => {
+            active = false;
+            // logic here is tricky. 
+            // If we unmount, we stop.
+            // If dep changes, we stop?
+            // If isEnabled changes to false, manageAnalysis stops it.
+            // If audioContext changes, manageAnalysis recycles.
+        };
+    }, [isEnabled, audioContext, deviceId, startAnalysis, stopAnalysis, analyzerInstance, isMicReady]);
 
     // Update settings dynamically
     useEffect(() => {

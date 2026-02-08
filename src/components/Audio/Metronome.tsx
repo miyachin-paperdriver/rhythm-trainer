@@ -227,7 +227,8 @@ export const Metronome: React.FC = () => {
         currentStep, lastBeatTime, isCountIn,
         setSubdivision, setGapClick, setPattern,
         audioContext,
-        initializeAudio
+        initializeAudio,
+        resetAudio
     } = useMetronome({ audioLatency });
 
     // Media Session API Integration
@@ -1132,13 +1133,17 @@ export const Metronome: React.FC = () => {
 
                 // [FIX] Add delay to allow Android audio routing to settle (Call Mode switch)
                 // This prevents the "silent count-in" issue caused by the mode switch glitch.
-                await new Promise(resolve => setTimeout(resolve, 500));
+                await new Promise(resolve => setTimeout(resolve, 800));
 
-                // [FIX] Force resume if context got suspended by the mode switch
-                if (audioContext?.state === 'suspended') {
-                    console.log('[Toggle] Resuming AudioContext after mic init');
-                    await audioContext.resume();
-                }
+                // [FIX] COMPLETELY RESET AudioContext after Mic acquisition.
+                // On Android/Bluetooth, acquiring the mic often changes the hardware sample rate 
+                // (e.g. 48kHz -> 16kHz for SCO), which invalidates the old AudioContext or leaves 
+                // it running at the wrong rate/clock. Re-creating it ensures synchronization.
+                console.log('[Toggle] Resetting AudioContext to match new hardware rate...');
+                await resetAudio();
+
+                // Wait a bit for the new context to be ready
+                await new Promise(resolve => setTimeout(resolve, 200));
 
             } catch (e) {
                 console.warn("Mic failed", e);

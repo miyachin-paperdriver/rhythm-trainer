@@ -37,6 +37,13 @@ export const Metronome: React.FC = () => {
 
 
 
+    // Tempo / Rhythm Settings State
+    const [subdivision, setSubdivisionState] = useState<Subdivision>(1);
+    const [gapEnabled, setGapEnabled] = useState(false);
+    const [playBars, setPlayBars] = useState(4);
+    const [muteBars, setMuteBars] = useState(4);
+    // const [tapTempo, setTapTempo] = useState<number[]>([]); // Removed unused
+
     // Custom Patterns from DB
     const customPatterns = useLiveQuery(() => db.custom_patterns.toArray(), []) || [];
 
@@ -48,7 +55,7 @@ export const Metronome: React.FC = () => {
             id: p.id,
             name: p.name,
             sequence: p.sequence as Note[], // For display compatibility
-            measures: patternToMeasures(p, 1), // Convert to measures format (quarter notes)
+            measures: patternToMeasures(p, subdivision), // Use current subdivision!
             isCustom: false
         }));
         const customs = customPatterns.map(cp => ({
@@ -59,7 +66,7 @@ export const Metronome: React.FC = () => {
             isCustom: true
         }));
         return [...presets, ...customs];
-    }, [customPatterns]);
+    }, [customPatterns, subdivision]);
 
     const [selectedPatternId, setSelectedPatternId] = useState(PATTERNS[2].id);
 
@@ -87,12 +94,7 @@ export const Metronome: React.FC = () => {
     };
 
 
-    // Tempo / Rhythm Settings State
-    const [subdivision, setSubdivisionState] = useState<Subdivision>(1);
-    const [gapEnabled, setGapEnabled] = useState(false);
-    const [playBars, setPlayBars] = useState(4);
-    const [muteBars, setMuteBars] = useState(4);
-    // const [tapTempo, setTapTempo] = useState<number[]>([]); // Removed unused
+
 
     // Output Mode State
     const [outputMode, setOutputMode] = useState<'speaker' | 'headphone'>(() => {

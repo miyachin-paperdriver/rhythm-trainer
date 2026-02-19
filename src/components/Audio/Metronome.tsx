@@ -1258,6 +1258,7 @@ export const Metronome: React.FC = () => {
                 theme={theme}
                 effectsEnabled={visualEffectsEnabled}
                 fullscreen={true}
+                bpm={bpm}
             />
 
             {/* Timer Completion Overlay */}
@@ -1737,6 +1738,7 @@ export const Metronome: React.FC = () => {
                                 lastBeatTime={lastBeatTime}
                                 theme={theme}
                                 effectsEnabled={visualEffectsEnabled}
+                                bpm={bpm}
                             />
                             <PatternVisualizer
                                 pattern={selectedPattern}

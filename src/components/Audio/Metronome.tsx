@@ -113,11 +113,11 @@ export const Metronome: React.FC = () => {
     const [audioLatencyBT, setAudioLatencyBT] = useState(() => Number(localStorage.getItem('audioLatency_bt') || 200));
 
     // Mic Settings State (Independent)
-    const [micGainSpeaker, setMicGainSpeaker] = useState(() => Number(localStorage.getItem('micGain_speaker') || 7.0));
-    const [micGainBT, setMicGainBT] = useState(() => Number(localStorage.getItem('micGain_bt') || 10.0)); // Higher default for BT
+    const [micGainSpeaker, setMicGainSpeaker] = useState(() => Number(localStorage.getItem('micGain_speaker') || 3.0));
+    const [micGainBT, setMicGainBT] = useState(() => Number(localStorage.getItem('micGain_bt') || 3.0));
 
-    const [micThresholdSpeaker, setMicThresholdSpeaker] = useState(() => Number(localStorage.getItem('micThreshold_speaker') || 0.1));
-    const [micThresholdBT, setMicThresholdBT] = useState(() => Number(localStorage.getItem('micThreshold_bt') || 0.15));
+    const [micThresholdSpeaker, setMicThresholdSpeaker] = useState(() => Number(localStorage.getItem('micThreshold_speaker') || 0.2));
+    const [micThresholdBT, setMicThresholdBT] = useState(() => Number(localStorage.getItem('micThreshold_bt') || 0.2));
 
     // Derived Current Settings
     const audioLatency = outputMode === 'speaker' ? audioLatencySpeaker : audioLatencyBT;
@@ -223,7 +223,7 @@ export const Metronome: React.FC = () => {
 
     // ---- Hooks ----
     const {
-        bpm, isPlaying, start, stop, changeBpm,
+        bpm, isPlaying, start: engineStart, stop, changeBpm,
         currentStep, lastBeatTime, isCountIn,
         setSubdivision, setGapClick, setPattern,
         audioContext,
@@ -236,7 +236,7 @@ export const Metronome: React.FC = () => {
         if ('mediaSession' in navigator) {
             navigator.mediaSession.setActionHandler('play', () => {
                 console.log('[MediaSession] Play triggered');
-                start();
+                engineStart();
             });
             navigator.mediaSession.setActionHandler('pause', () => {
                 console.log('[MediaSession] Pause triggered');
@@ -255,7 +255,7 @@ export const Metronome: React.FC = () => {
                 navigator.mediaSession.setActionHandler('pause', null);
             }
         };
-    }, [start, stop]);
+    }, [engineStart, stop]);
 
     useEffect(() => {
         if ('mediaSession' in navigator) {
@@ -372,9 +372,12 @@ export const Metronome: React.FC = () => {
         }
     }, [expandedMeasures, setPattern]);
 
+    // State to delay start until mic is ready (Android fix)
+    const [waitingForMic, setWaitingForMic] = useState(false);
+
     // Mic is ALWAYS enabled (user setting) but we only Activate stream when needed
     // to prevent Android "Call Mode" lock.
-    const isMicActive = isPlaying || isCalibrating || activeTab === 'settings';
+    const isMicActive = isPlaying || isCalibrating || activeTab === 'settings' || waitingForMic;
 
     // Audio Analysis
     const {
@@ -419,6 +422,45 @@ export const Metronome: React.FC = () => {
     useEffect(() => {
         audioContextRef.current = audioContext;
     }, [audioContext]);
+
+    // ---- Start/Stop Logic with Mic Wait ----
+    const start = async () => {
+        // If already playing, do nothing (or pause?)
+        if (isPlaying) return;
+
+        // If mic is already ready, or errored, or disabled? (mic is always enabled in settings really)
+        // Check if we need to wait for mic
+        // If isMicReady is true, we can start immediately.
+        // If micError is present, we start without mic.
+        if (isMicReady || micError) {
+            engineStart();
+        } else {
+            // Need to wait for mic permissions/init
+            console.log('[Metronome] Waiting for Mic before start...');
+            setWaitingForMic(true);
+            // Ensure audio is initialized so useAudioAnalysis can start
+            if (!audioContext) {
+                initializeAudio();
+            }
+            // The effect in useAudioAnalysis will see isMicActive=true (due to waitingForMic) and start analysis
+        }
+    };
+
+    // Effect to trigger start when mic becomes ready
+    useEffect(() => {
+        if (waitingForMic) {
+            if (isMicReady) {
+                console.log('[Metronome] Mic Ready -> Starting Engine');
+                engineStart();
+                setWaitingForMic(false);
+            } else if (micError) {
+                console.warn('[Metronome] Mic Error -> Starting Engine (No Mic)');
+                engineStart();
+                setWaitingForMic(false);
+                // Optionally show error toast here
+            }
+        }
+    }, [waitingForMic, isMicReady, micError, engineStart]);
 
     // ---- Mic Auto Calibration ----
     const [micCalibState, setMicCalibState] = useState<{
@@ -1726,15 +1768,16 @@ export const Metronome: React.FC = () => {
 
 
                         {/* Feedback Display (Gauge) */}
-                        <div style={{ height: '50px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', marginBottom: '0.5rem' }}>
-                            <TimingGauge offsetMs={displayFeedback.offsetMs} feedback={displayFeedback.feedback} />
-                            <div style={{ height: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                {displayFeedback.feedback && (
-                                    <div style={{ fontSize: '0.8rem', fontWeight: 'bold', color: displayFeedback.feedback === 'Perfect' ? 'var(--color-success)' : displayFeedback.feedback === 'Good' ? 'var(--color-accent)' : 'var(--color-error)' }}>
-                                        {Math.round(Math.abs(displayFeedback.offsetMs))}ms
-                                    </div>
-                                )}
-                            </div>
+                        <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', marginBottom: '0.5rem', marginTop: '0.5rem' }}>
+                            <TimingGauge
+                                offsetMs={displayFeedback.offsetMs}
+                                feedback={displayFeedback.feedback}
+                                bpm={bpm}
+                                isPlaying={isPlaying && !isCountIn}
+                                audioLatency={audioLatency}
+                                theme={theme}
+                                isActive={visualEffectsEnabled}
+                            />
                         </div>
 
                         {/* 2. Unified Control Panel (Start/Stop + Tempo) */}
@@ -2134,7 +2177,6 @@ export const Metronome: React.FC = () => {
                                     onsets={onsets}
                                     startTime={startTime}
                                     duration={duration}
-                                    audioContext={audioContext}
                                     beatHistory={beatHistory}
                                     audioLatency={audioLatency}
                                 />
@@ -2190,8 +2232,7 @@ export const Metronome: React.FC = () => {
                             mediaStream={mediaStream}
                             micError={micError}
                             currentLevel={currentLevel}
-                            selectedDeviceId={selectedDeviceId}
-                            onDeviceChange={setSelectedDeviceId}
+                        // onDeviceChange Removed - relying on auto-selection
                         />
                     </div>
                 )

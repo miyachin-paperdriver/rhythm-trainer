@@ -1,6 +1,7 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { DeviceSelector } from './DeviceSelector';
+// DeviceSelector removed per user request
+// import { DeviceSelector } from './DeviceSelector';
 
 import { version } from '../../../package.json';
 
@@ -33,9 +34,9 @@ interface MetronomeSettingsProps {
     micError: string | null;
     currentLevel: number;
 
-    // Device Selection
-    selectedDeviceId: string | undefined;
-    onDeviceChange: (deviceId: string) => void;
+    // Device Selection - Removed
+    // selectedDeviceId: string | undefined;
+    // onDeviceChange Removed
 }
 
 export const MetronomeSettings: React.FC<MetronomeSettingsProps> = ({
@@ -58,8 +59,8 @@ export const MetronomeSettings: React.FC<MetronomeSettingsProps> = ({
     mediaStream,
     micError,
     currentLevel,
-    selectedDeviceId,
-    onDeviceChange
+    // selectedDeviceId, // Removed
+    // onDeviceChange
 }) => {
     const { t, i18n } = useTranslation();
     const [debugMode, setDebugMode] = React.useState(false);
@@ -107,7 +108,8 @@ export const MetronomeSettings: React.FC<MetronomeSettingsProps> = ({
                 marginBottom: '1.5rem',
                 color: 'var(--color-primary)',
                 borderBottom: '1px solid var(--color-border)',
-                paddingBottom: '0.5rem'
+                paddingBottom: '0.5rem',
+                textAlign: 'left' // Explicitly left aligned
             }}>
                 {t('settings.title')}
             </h2>
@@ -133,8 +135,8 @@ export const MetronomeSettings: React.FC<MetronomeSettingsProps> = ({
             </div>
 
             {/* Output Mode Toggle */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                <label style={{ fontSize: '0.85rem', color: 'var(--color-text-dim)' }}>Output Mode</label>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '1.5rem' }}>
+                <label style={{ fontSize: '0.85rem', color: 'var(--color-text-dim)', textAlign: 'left' }}>Output Mode</label>
                 <div style={{ display: 'flex', background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', padding: '2px' }}>
                     <button
                         onClick={() => onOutputModeChange('speaker')}
@@ -189,11 +191,9 @@ export const MetronomeSettings: React.FC<MetronomeSettingsProps> = ({
                 </div>
             </div>
 
-
-
             {/* Latency Calibration */}
-            <div>
-                <label style={{ display: 'flex', alignItems: 'center', marginBottom: '0.5rem', fontSize: '0.85rem', color: 'var(--color-text-dim)' }}>
+            <div style={{ marginTop: '1.5rem' }}>
+                <label style={{ display: 'flex', alignItems: 'center', marginBottom: '0.5rem', fontSize: '0.85rem', color: 'var(--color-text-dim)', textAlign: 'left' }}>
                     {t('settings.latency_calibration')}
                     {outputMode === 'speaker' ? (
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginLeft: '6px', opacity: 0.8 }}>
@@ -220,7 +220,8 @@ export const MetronomeSettings: React.FC<MetronomeSettingsProps> = ({
                                 borderRadius: 'var(--radius-md)',
                                 border: '1px solid var(--color-border)',
                                 background: 'var(--color-surface)',
-                                color: 'var(--color-text)'
+                                color: 'var(--color-text)',
+                                boxSizing: 'border-box'
                             }}
                         />
                     </div>
@@ -246,52 +247,85 @@ export const MetronomeSettings: React.FC<MetronomeSettingsProps> = ({
                 {isCalibrating && <div style={{ fontSize: '0.7rem', color: 'var(--color-accent)', marginTop: '4px' }}>{t('settings.calibrating_msg')}</div>}
             </div>
 
-            {/* Mic Settings (Gain/Threshold) always visible now since mic is always on */}
-            <div style={{ marginBottom: '1.5rem', borderTop: '1px solid var(--color-border)', paddingTop: '1rem' }}>
+            {/* Mic Settings (Gain/Threshold) */}
+            <div style={{ marginTop: '1.5rem', marginBottom: '1.5rem', borderTop: '1px solid var(--color-border)', paddingTop: '1rem' }}>
                 <div style={{ marginBottom: '1rem' }}>
-                    <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem', color: 'var(--color-text)' }}>
+                    <h3 style={{ margin: '0 0 0.8rem 0', fontSize: '0.9rem', color: 'var(--color-text)', textAlign: 'left' }}>
                         {t('settings.mic_settings')}
                     </h3>
 
-                    {/* Device Selector */}
-                    <DeviceSelector
-                        selectedDeviceId={selectedDeviceId}
-                        onDeviceChange={onDeviceChange}
-                    />
+                    {/* Device Selector REMOVED */}
 
                     {/* Gain Control */}
-                    <div style={{ marginBottom: '1rem' }}>
+                    <div style={{ marginBottom: '1rem', padding: '0.5rem', border: '1px solid var(--color-border)', borderRadius: '8px' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
                             <label style={{ fontSize: '0.8rem', color: 'var(--color-text)' }}>{t('settings.gain')}</label>
                             <span style={{ fontSize: '0.8rem', fontFamily: 'monospace', color: 'var(--color-primary)' }}>{micGain.toFixed(1)}</span>
                         </div>
-                        <input
-                            type="range"
-                            min="0"
-                            max="10"
-                            step="0.1"
-                            value={micGain}
-                            onChange={(e) => onMicGainChange(parseFloat(e.target.value))}
-                            style={{ width: '100%' }}
-                        />
+                        <div style={{ padding: '0 4px' }}>
+                            <input
+                                type="range"
+                                min="0"
+                                max="10"
+                                step="0.1"
+                                value={micGain}
+                                onChange={(e) => onMicGainChange(parseFloat(e.target.value))}
+                                style={{ width: '100%', boxSizing: 'border-box' }}
+                            />
+                        </div>
+
+                        {/* Mic Input Meter */}
+                        <div style={{ marginTop: '0.5rem' }}>
+                            <div style={{
+                                width: '100%',
+                                height: '6px',
+                                background: '#333',
+                                borderRadius: '3px',
+                                overflow: 'hidden',
+                                position: 'relative'
+                            }}>
+                                <div style={{
+                                    width: `${Math.min(currentLevel * 500, 100)}%`, // Amplified for visibility
+                                    height: '100%',
+                                    background: currentLevel > micThreshold ? '#00cc00' : '#0088ff',
+                                    transition: 'width 0.05s ease-out'
+                                }} />
+                                {/* Threshold Indicator */}
+                                <div style={{
+                                    position: 'absolute',
+                                    left: `${Math.min(micThreshold * 500, 100)}%`,
+                                    top: 0,
+                                    bottom: 0,
+                                    width: '2px',
+                                    background: 'rgba(255, 0, 0, 0.7)',
+                                    zIndex: 10
+                                }} />
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.65rem', color: 'var(--color-text-dim)', marginTop: '2px' }}>
+                                <span>Input Level</span>
+                                <span>{currentLevel > 0.001 ? 'Active' : 'Silent'}</span>
+                            </div>
+                        </div>
                     </div>
 
                     {/* Threshold Control */}
-                    <div style={{ marginBottom: '1rem' }}>
+                    <div style={{ marginBottom: '1rem', padding: '0.5rem', border: '1px solid var(--color-border)', borderRadius: '8px' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
                             <label style={{ fontSize: '0.8rem', color: 'var(--color-text)' }}>{t('settings.sensitivity')}</label>
                             <span style={{ fontSize: '0.8rem', fontFamily: 'monospace', color: 'var(--color-primary)' }}>{micThreshold.toFixed(2)}</span>
                         </div>
-                        <input
-                            type="range"
-                            min="0.01"
-                            max="0.5"
-                            step="0.01"
-                            value={micThreshold}
-                            onChange={(e) => onMicThresholdChange(parseFloat(e.target.value))}
-                            style={{ width: '100%' }}
-                        />
-                        <div style={{ fontSize: '0.7rem', color: 'var(--color-text-dim)', marginTop: '0.2rem' }}>
+                        <div style={{ padding: '0 4px' }}>
+                            <input
+                                type="range"
+                                min="0.01"
+                                max="0.5"
+                                step="0.01"
+                                value={micThreshold}
+                                onChange={(e) => onMicThresholdChange(parseFloat(e.target.value))}
+                                style={{ width: '100%', boxSizing: 'border-box' }}
+                            />
+                        </div>
+                        <div style={{ fontSize: '0.7rem', color: 'var(--color-text-dim)', marginTop: '0.5rem', whiteSpace: 'pre-wrap', lineHeight: '1.3' }}>
                             {t('settings.lower_is_more_sensitive')}
                         </div>
                     </div>
@@ -308,15 +342,19 @@ export const MetronomeSettings: React.FC<MetronomeSettingsProps> = ({
                             borderRadius: '8px',
                             color: 'var(--color-primary)',
                             fontSize: '0.9rem',
-                            opacity: isMicCalibrating ? 0.7 : 1
+                            opacity: isMicCalibrating ? 0.7 : 1,
+                            cursor: 'pointer'
                         }}
                     >
                         {isMicCalibrating ? t('settings.running') : t('settings.auto_set')}
                     </button>
+                    <div style={{ fontSize: '0.7rem', color: 'var(--color-text-dim)', textAlign: 'center', marginTop: '4px' }}>
+                        {t('settings.input_device_desc')}
+                    </div>
                 </div>
 
                 {/* Theme */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '2rem' }}>
                     <label style={{ fontSize: '0.85rem', color: 'var(--color-text-dim)' }}>{t('settings.theme')}</label>
                     <button onClick={toggleTheme} style={{
                         background: 'var(--color-surface)',
@@ -325,14 +363,15 @@ export const MetronomeSettings: React.FC<MetronomeSettingsProps> = ({
                         borderRadius: '20px',
                         fontWeight: 'bold',
                         padding: '6px 16px',
-                        transition: 'all 0.2s'
+                        transition: 'all 0.2s',
+                        cursor: 'pointer'
                     }}>
                         {currentTheme === 'dark' ? t('settings.dark') : t('settings.light')}
                     </button>
                 </div>
 
                 {/* Visual Effects */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1.5rem' }}>
                     <label style={{ fontSize: '0.85rem', color: 'var(--color-text-dim)' }}>{t('settings.visual_effects')}</label>
                     <button onClick={() => onVisualEffectsChange(!visualEffectsEnabled)} style={{
                         background: visualEffectsEnabled ? 'var(--color-primary)' : 'var(--color-surface)',
@@ -341,14 +380,15 @@ export const MetronomeSettings: React.FC<MetronomeSettingsProps> = ({
                         borderRadius: '20px',
                         fontWeight: 'bold',
                         padding: '6px 16px',
-                        transition: 'all 0.2s'
+                        transition: 'all 0.2s',
+                        cursor: 'pointer'
                     }}>
                         {visualEffectsEnabled ? t('settings.effects_on') : t('settings.effects_off')}
                     </button>
                 </div>
 
                 {/* DEBUG INFO */}
-                <div style={{ borderTop: '1px solid var(--color-border)', paddingTop: '1rem' }}>
+                <div style={{ borderTop: '1px solid var(--color-border)', paddingTop: '1rem', marginTop: '2rem' }}>
                     <button
                         onClick={() => setDebugMode(!debugMode)}
                         style={{
@@ -357,7 +397,8 @@ export const MetronomeSettings: React.FC<MetronomeSettingsProps> = ({
                             border: '1px dashed var(--color-text-dim)',
                             color: 'var(--color-text-dim)',
                             fontSize: '0.7rem',
-                            padding: '4px'
+                            padding: '4px',
+                            cursor: 'pointer'
                         }}
                     >
                         {debugMode ? t('settings.debug_hide') : t('settings.debug_show')}
@@ -438,45 +479,17 @@ export const MetronomeSettings: React.FC<MetronomeSettingsProps> = ({
                                 </div>
                             )}
 
-                            {/* Audio Output Test */}
-                            <div style={{ marginTop: '0.5rem', borderTop: '1px solid #eee', paddingTop: '0.5rem' }}>
-                                <button
-                                    onClick={() => {
-                                        const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
-                                        const osc = ctx.createOscillator();
-                                        const gain = ctx.createGain();
-                                        osc.connect(gain);
-                                        gain.connect(ctx.destination);
-                                        osc.frequency.value = 880;
-                                        gain.gain.value = 0.5;
-                                        osc.start();
-                                        setTimeout(() => {
-                                            osc.stop();
-                                            ctx.close();
-                                        }, 200);
-                                    }}
-                                    style={{
-                                        background: '#eee',
-                                        border: '1px solid #ccc',
-                                        padding: '4px 8px',
-                                        fontSize: '0.7rem',
-                                        cursor: 'pointer',
-                                        borderRadius: '4px'
-                                    }}
-                                >
-                                    Test Beep (New Context)
-                                </button>
-                            </div>
-                        </div>
+
+                    </div>
                     )}
-                </div>
-
             </div>
 
-            {/* Version */}
-            <div style={{ textAlign: 'center', marginTop: '2rem', color: 'var(--color-text-dim)', fontSize: '0.8rem' }}>
-                v{version}
-            </div>
         </div>
+
+            {/* Version */ }
+    <div style={{ textAlign: 'center', marginTop: '2rem', color: 'var(--color-text-dim)', fontSize: '0.8rem' }}>
+        v{version}
+    </div>
+        </div >
     );
 };

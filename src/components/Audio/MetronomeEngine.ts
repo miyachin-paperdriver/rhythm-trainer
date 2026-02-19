@@ -45,9 +45,19 @@ export class MetronomeEngine {
         if (onTick) this.onTick = onTick;
     }
 
-    public init() {
+    public init(forceRecreate: boolean = false) {
+        if (this.audioContext && (forceRecreate || this.audioContext.state === 'closed')) {
+            try {
+                this.audioContext.close();
+            } catch (e) {
+                console.warn('[MetronomeEngine] Error closing context:', e);
+            }
+            this.audioContext = null;
+        }
+
         if (!this.audioContext) {
-            this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+            const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+            this.audioContext = new AudioContextClass();
         }
     }
 
@@ -58,15 +68,32 @@ export class MetronomeEngine {
         // 1. Force unlock immediately within user gesture (Sync)
         this.unlockAudioContext();
 
-        // START Silent Audio to holding "Playback" Session
+        // [Moved] Start Silent Audio immediately to catch the user gesture
+        // This is critical for iOS Silent Mode bypass
         this.startSilentAudio();
 
-        // 2. Resume context
+        // 2. Resume context with Timeout & Recovery
         if (this.audioContext?.state === 'suspended') {
-            await this.audioContext.resume();
+            try {
+                // Race resume against a timeout
+                const resumePromise = this.audioContext.resume();
+                const timeoutPromise = new Promise((_, reject) =>
+                    setTimeout(() => reject(new Error('Resume Timeout')), 2000)
+                );
+
+                await Promise.race([resumePromise, timeoutPromise]);
+                console.log('[MetronomeEngine] AudioContext resumed successfully');
+            } catch (e) {
+                console.warn('[MetronomeEngine] Resume failed or timed out. Recreating context...', e);
+                // Force recreate
+                this.init(true);
+                await this.audioContext?.resume();
+            }
         }
 
-        // 3. Workaround for "fade-in" effect: wait a bit for hardware to fully unmute
+
+
+        // 4. Workaround for "fade-in" effect: wait a bit for hardware to fully unmute
         // Increasing to 600ms to ensure first beat is audible. Buffer maintains activity.
         await new Promise(r => setTimeout(r, 600));
 
@@ -118,7 +145,7 @@ export class MetronomeEngine {
         if (!this.silentAudio) {
             this.silentAudio = document.createElement('audio');
             // Tiny silent MP3
-            this.silentAudio.src = 'data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//OEAAAAAAAAAAAAAAAAAAAAAAAASW5mbwAAAA8AAAAEAAABIADAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV6urq6urq6urq6urq6urq6urq6urq6urq6v////////////////////////////////8AAAAATGF2YzU4LjkxAAAAAAAAAAAAAAAAJAAAAAAAAAAAASAAAAAA//OEZAAAAAABIAAAACABHAAAAAAAAAAAAAA//OEZAAAAAABIAAAACABHAAAAAAAAAAAAAA//OEZAAAAAABIAAAACABHAAAAAAAAAAAAAA//OEZAAAAAABIAAAACABHAAAAAAAAAAAAAA//OEZAAAAAABIAAAACABHAAAAAAAAAAAAAA//OEZAAAAAABIAAAACABHAAAAAAAAAAAAAA';
+            this.silentAudio.src = 'data:audio/wav;base64,UklGRiYAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=';
             // Important: Loop it so it stays active
             this.silentAudio.loop = true;
             this.silentAudio.volume = 0.01;

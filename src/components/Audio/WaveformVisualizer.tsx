@@ -5,7 +5,6 @@ interface WaveformVisualizerProps {
     onsets: number[]; // Absolute timestamps
     startTime: number;
     duration: number; // passed from recorder, but buffer.duration is preferred
-    audioContext?: AudioContext | null;
     beatHistory?: number[]; // Absolute timestamps of beat clicks
     audioLatency?: number;
 }
@@ -14,8 +13,6 @@ export const WaveformVisualizer: React.FC<WaveformVisualizerProps> = ({
     audioBlob,
     onsets,
     startTime,
-    // duration removed
-    audioContext,
     beatHistory = [],
     audioLatency = 0
 }) => {
@@ -25,30 +22,50 @@ export const WaveformVisualizer: React.FC<WaveformVisualizerProps> = ({
 
     // Playback
     const [isPlaying, setIsPlaying] = React.useState(false);
-    const sourceRef = useRef<AudioBufferSourceNode | null>(null);
-    // playbackContextRef removed
+    const playbackContextRef = useRef<AudioContext | null>(null);
 
     // Zoom & Interaction
     const [zoom, setZoom] = useState(1);
     const [hoveredMarker, setHoveredMarker] = useState<{ x: number, offsetMs: number | null } | null>(null);
 
     // Load Audio
+    // Load Audio & Manage Context
     useEffect(() => {
         if (!audioBlob) return;
 
-        const loadAudio = async () => {
-            const arrayBuffer = await audioBlob.arrayBuffer();
-            // Create a temp context just for decoding if main one is not handy or locked
-            const ctx = audioContext || new (window.AudioContext || (window as any).webkitAudioContext)();
+        let active = true;
+
+        const initAudio = async () => {
+            // Close existing context if any
+            if (playbackContextRef.current) {
+                await playbackContextRef.current.close().catch(e => console.warn(e));
+                playbackContextRef.current = null;
+            }
+
+            // Create new isolated context for playback
+            const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+            const ctx = new AudioContextClass();
+            playbackContextRef.current = ctx;
+
             try {
+                const arrayBuffer = await audioBlob.arrayBuffer();
                 const buffer = await ctx.decodeAudioData(arrayBuffer);
-                setAudioBuffer(buffer);
+                if (active) setAudioBuffer(buffer);
             } catch (e) {
                 console.error("Error decoding audio", e);
             }
         };
-        loadAudio();
-    }, [audioBlob, audioContext]);
+
+        initAudio();
+
+        return () => {
+            active = false;
+            if (playbackContextRef.current) {
+                playbackContextRef.current.close().catch(e => console.warn(e));
+                playbackContextRef.current = null;
+            }
+        };
+    }, [audioBlob]);
 
     // Draw
     useEffect(() => {
@@ -194,28 +211,62 @@ export const WaveformVisualizer: React.FC<WaveformVisualizerProps> = ({
         }
     };
 
+    // Playback state using HTML5 Audio (better for iOS Silent Mode)
+    const [audioElement, setAudioElement] = useState<HTMLAudioElement | null>(null);
+
+    // Create Audio Element on Blob Change
+    useEffect(() => {
+        if (!audioBlob) return;
+
+        const url = URL.createObjectURL(audioBlob);
+        const audio = new Audio(url);
+        // Important for iOS
+        audio.setAttribute('playsinline', 'true');
+
+        console.log('[Visualizer] Created HTML5 Audio for playback', url);
+
+        audio.onended = () => {
+            setIsPlaying(false);
+        };
+
+        audio.onpause = () => {
+            // Handle external pauses (e.g. interruptions) if needed
+            setIsPlaying(false);
+        };
+
+        setAudioElement(audio);
+
+        return () => {
+            URL.revokeObjectURL(url);
+            audio.pause();
+            audio.src = '';
+            setAudioElement(null);
+        };
+    }, [audioBlob]);
+
+
     const togglePlayback = () => {
+        if (!audioElement) return;
+
         if (isPlaying) {
-            if (sourceRef.current) {
-                try {
-                    sourceRef.current.stop();
-                } catch (e) { /* ignore */ }
-                sourceRef.current = null;
-            }
+            audioElement.pause();
+            audioElement.currentTime = 0; // Optional: rewind? toggle implies pause usually, but Stop button in UI says "Stop"
             setIsPlaying(false);
         } else {
-            if (!audioBuffer) return;
+            // iOS requires user gesture - this function is called from onClick, so it works.
+            audioElement.currentTime = 0; // Always start from beginning for "Play Recording"
 
-            const ctx = audioContext || new (window.AudioContext || (window as any).webkitAudioContext)();
-            if (ctx.state === 'suspended') ctx.resume();
-
-            const source = ctx.createBufferSource();
-            source.buffer = audioBuffer;
-            source.connect(ctx.destination);
-            source.onended = () => setIsPlaying(false);
-            source.start(0);
-            sourceRef.current = source;
-            setIsPlaying(true);
+            // Attempt to play
+            const playPromise = audioElement.play();
+            if (playPromise !== undefined) {
+                playPromise.then(() => {
+                    setIsPlaying(true);
+                }).catch(error => {
+                    console.error("Playback failed", error);
+                    setIsPlaying(false);
+                    alert("Playback failed. Please try again.");
+                });
+            }
         }
     };
 

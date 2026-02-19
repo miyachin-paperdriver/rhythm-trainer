@@ -39,7 +39,8 @@ export const ManualHelper: React.FC = () => {
             lineHeight: '1.6',
             maxWidth: '600px',
             margin: '0 auto',
-            fontSize: '0.9rem'
+            fontSize: '0.9rem',
+            textAlign: 'left'
         }}>
             <div style={{ marginBottom: '2rem', background: 'rgba(0, 255, 255, 0.05)', padding: '1rem', borderRadius: '8px', border: '1px solid rgba(0, 255, 255, 0.2)' }}>
                 <h2 style={{ fontSize: '1.2rem', marginBottom: '0.5rem', color: 'var(--color-primary)', marginTop: 0 }}>
@@ -90,13 +91,6 @@ export const ManualHelper: React.FC = () => {
             </div>
 
             <h2 style={{ fontSize: '1.2rem', marginBottom: '1rem', color: 'var(--color-primary)' }}>{t('manual.setup_guide')}</h2>
-
-            <div style={{ marginBottom: '1.5rem' }}>
-                <h3 style={{ fontSize: '1rem', fontWeight: 'bold', marginBottom: '0.5rem' }}>{t('manual.silent_switch_title')}</h3>
-                <p>
-                    {t('manual.silent_switch_desc')}
-                </p>
-            </div>
 
             <div style={{ marginBottom: '1.5rem' }}>
                 <h3 style={{ fontSize: '1rem', fontWeight: 'bold', marginBottom: '0.5rem' }}>{t('manual.latency_title')}</h3>

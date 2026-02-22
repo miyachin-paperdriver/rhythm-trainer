@@ -1,7 +1,7 @@
 {
   "name": "rhythm-trainer",
   "private": true,
-  "version": "0.2.96",
+  "version": "0.2.97",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -11,6 +11,7 @@
     "deploy": "git add . && git commit -m \"Auto deploy\" && git push origin main"
   },
   "dependencies": {
+    "@vercel/analytics": "^1.6.1",
     "dexie": "^4.3.0",
     "dexie-react-hooks": "^4.2.0",
     "framer-motion": "^12.31.2",
